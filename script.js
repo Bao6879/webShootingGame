@@ -49,24 +49,38 @@ let playerMovementSpeed = 3,
   projectileSpeed = 10,
   projectileDamage = 20,
   shootingCounter = 0,
-  shootingCooldown = 20,
+  shootingCooldown = 1,
+  waveSpawnCounter = 0,
+  waveSpawnDelay = 1000,
+  enemySpawnDelay = 60,
   enemySpawnCounter = 0,
-  enemySpawnDelay = 1000000,
   currentWave = 0,
-  currentWaveTotalHealth = 0;
+  currentWaveTotalHealth = 0,
+  spawnCounter = 0,
+  trueTimeCounter = 0;
 let playerProjectiles = [],
   previousPlayerProjectiles = [],
   enemies = [],
-  previousEnemies = [];
+  previousEnemies = [],
+  temporaryEnemies = [];
 const enemyTypes = [
-  { id: "tank1", health: 20, weight: 3, width: 50, height: 50 },
+  {
+    id: "tank1",
+    health: 20,
+    weight: 3,
+    xSpeed: 2.5,
+    ySpeed: 1,
+    width: 50,
+    height: 50,
+    movement: ["straight", "sine", "hold", "bounce"],
+  },
 ];
 //Game processing
 function process() {
   if (playing) {
     updateFPS();
     playerFunctions();
-    enemySpawn();
+    waveSpawn();
     collision();
   }
 }
@@ -99,45 +113,100 @@ function playerFunctions() {
   playerProjectiles = playerProjectiles.filter((bullet) => bullet.y >= -50);
 }
 
-function enemySpawn() {
+function waveSpawn() {
   let hpCount = 0;
+  trueTimeCounter++;
   for (let i = 0; i < enemies.length; i++) {
     if (enemies[i].wave == currentWave) hpCount += enemies[i].health;
   }
-  console.log(hpCount);
+  for (let i = 0; i < temporaryEnemies.length; i++) {
+    if (temporaryEnemies[i].wave == currentWave)
+      hpCount += temporaryEnemies[i].health;
+  }
   if (
     hpCount <= currentWaveTotalHealth * 0.5 ||
-    enemySpawnCounter >= enemySpawnDelay
+    waveSpawnCounter >= waveSpawnDelay
   ) {
     currentWave++;
-    currentWaveTotalHealth = 20 + 10 * (currentWave * 2);
-    console.log(currentWave, currentWaveTotalHealth);
+    currentWaveTotalHealth = 20 + 10 * (currentWave * 1.5);
     let temp = currentWaveTotalHealth;
     while (temp > 0) {
       let dice = Math.floor(Math.random() * enemyTypes[0].weight + 1);
-      let flag = false;
       for (let i = 0; i < enemyTypes.length; i++) {
-        let enemy = enemyTypes[i];
+        let enemy = { ...enemyTypes[i] };
         if (dice < enemy.weight) {
-          enemies.push({
-            x: Math.random() * (canvas.width - 50),
-            y: 0,
-            wave: currentWave,
-            health: enemy.health,
-            width: enemy.width,
-            height: enemy.height,
-          });
-          flag = true;
+          temporaryEnemies.push(createEnemy(enemy));
           temp -= enemy.health;
           break;
         }
       }
     }
-    console.log(currentWave, currentWaveTotalHealth);
-    enemySpawnCounter = -60;
+    waveSpawnCounter = -60;
+  } else waveSpawnCounter++;
+  if (enemySpawnCounter >= enemySpawnDelay && temporaryEnemies.length > 0) {
+    enemies.push(temporaryEnemies.shift());
+    enemySpawnCounter = 0;
   } else enemySpawnCounter++;
-  for (let i = 0; i < enemies.length; i++) enemies[i].y += 0.2;
+  for (let i = 0; i < enemies.length; i++) {
+    let enemy = enemies[i];
+    enemyMovement(enemy, trueTimeCounter);
+  }
   enemies = enemies.filter((enemy) => enemy.y <= canvas.height - enemy.height);
+}
+
+function createEnemy(enemy) {
+  let newEnemy = {
+    x: Math.random() * (canvas.width - enemy.width),
+    y: 0,
+    ySpeed: Math.random() * enemy.ySpeed,
+    movement: enemy.movement[Math.floor(Math.random() * enemy.movement.length)],
+    wave: currentWave,
+    health: enemy.health,
+    width: enemy.width,
+    height: enemy.height,
+  };
+  switch (newEnemy.movement) {
+    case "sine":
+      newEnemy.baseX = newEnemy.x;
+      newEnemy.amplitude = Math.random() * 100;
+      newEnemy.frequency = Math.random() * 0.03;
+      break;
+    case "bounce":
+      newEnemy.xSpeed = enemy.xSpeed * Math.random();
+      break;
+    case "hold":
+      newEnemy.yLimit = (Math.random() + 1) * canvas.height * 0.4;
+      break;
+  }
+  return newEnemy;
+}
+
+function enemyMovement(enemy, timeCounter) {
+  switch (enemy.movement) {
+    case "straight":
+      enemy.y += enemy.ySpeed;
+      break;
+    case "sine":
+      enemy.y += enemy.ySpeed;
+      enemy.x =
+        enemy.baseX + enemy.amplitude * Math.sin(timeCounter * enemy.frequency);
+      enemy.x = Math.min(enemy.x, canvas.width - enemy.width);
+      enemy.x = Math.max(enemy.x, 0);
+      break;
+    case "bounce":
+      enemy.y += enemy.ySpeed;
+      enemy.x += enemy.xSpeed;
+      if (
+        enemy.x + enemy.xSpeed >= canvas.width - enemy.width ||
+        enemy.x + enemy.xSpeed < 0
+      )
+        enemy.xSpeed = -enemy.xSpeed;
+      break;
+    case "hold":
+      if (enemy.y < enemy.yLimit) enemy.y += enemy.ySpeed;
+      break;
+  }
+  console.log(enemy.x);
 }
 
 function collision() {
