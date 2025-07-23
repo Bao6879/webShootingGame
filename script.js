@@ -31,12 +31,21 @@ function updateFPS() {
   fps = 1 / delta;
 }
 
-const playerShip = new Image(),
-  playerBullet = new Image(),
-  enemyShip = new Image();
-playerShip.src = "images/player01.png";
-playerBullet.src = "images/bullet.png";
-enemyShip.src = "images/enemy01.png";
+let playerShip = null,
+  playerBullet = null;
+function loadImage(src) {
+  const img = new Image();
+  img.src = src;
+  return img;
+}
+function initImages() {
+  enemyTypes[0].image = loadImage("images/tank01.png");
+  enemyTypes[1].image = loadImage("images/tank02.png");
+  enemyTypes[2].image = loadImage("images/tank03.png");
+  enemyTypes[3].image = loadImage("images/tank04.png");
+  playerShip = loadImage("images/player01.png");
+  playerBullet = loadImage("images/bullet.png");
+}
 
 //Game variables
 let aPressed = false,
@@ -65,14 +74,48 @@ let playerProjectiles = [],
   temporaryEnemies = [];
 const enemyTypes = [
   {
-    id: "tank1",
+    id: "tank01",
     health: 20,
     weight: 3,
     xSpeed: 2.5,
     ySpeed: 1,
     width: 50,
     height: 50,
+    image: null,
     movement: ["straight", "sine", "hold", "bounce"],
+  },
+  {
+    id: "tank02",
+    health: 50,
+    weight: 2.5,
+    xSpeed: 4,
+    ySpeed: 2,
+    width: 64,
+    height: 64,
+    image: null,
+    movement: ["straight", "sine", "hold", "bounce", "homing"],
+  },
+  {
+    id: "tank03",
+    health: 250,
+    weight: 2,
+    xSpeed: 7,
+    ySpeed: 5,
+    width: 75,
+    height: 75,
+    image: null,
+    movement: ["straight", "sine", "hold", "bounce", "spread", "homing"],
+  },
+  {
+    id: "tank04",
+    health: 1000,
+    weight: 1.5,
+    xSpeed: 10,
+    ySpeed: 5,
+    width: 100,
+    height: 100,
+    image: null,
+    movement: ["spread", "sine", "hold", "bounce", "loop", "homing"],
   },
 ];
 //Game processing
@@ -128,7 +171,7 @@ function waveSpawn() {
     waveSpawnCounter >= waveSpawnDelay
   ) {
     currentWave++;
-    currentWaveTotalHealth = 20 + 10 * (currentWave * 1.5);
+    currentWaveTotalHealth = 20 + 10 * (currentWave ^ 2);
     let temp = currentWaveTotalHealth;
     while (temp > 0) {
       let dice = Math.floor(Math.random() * enemyTypes[0].weight + 1);
@@ -159,6 +202,11 @@ function createEnemy(enemy) {
     x: Math.random() * (canvas.width - enemy.width),
     y: 0,
     ySpeed: Math.random() * enemy.ySpeed,
+    isInvincible: false,
+    invincibleDuration: 5,
+    lastHitTime: 0,
+    visible: true,
+    image: enemy.image,
     movement: enemy.movement[Math.floor(Math.random() * enemy.movement.length)],
     wave: currentWave,
     health: enemy.health,
@@ -177,11 +225,23 @@ function createEnemy(enemy) {
     case "hold":
       newEnemy.yLimit = (Math.random() + 1) * canvas.height * 0.4;
       break;
+    case "homing":
+      newEnemy.speed = ((enemy.xSpeed + enemy.ySpeed) / 2) * Math.random;
+      break;
+    case "spread":
+      newEnemy.yLimit = (Math.random() + 1) * canvas.height * 0.4;
+      newEnemy.spreaded = false;
+      break;
+    case "loop":
+      newEnemy.yLimit = (Math.random() + 1) * canvas.height * 0.4;
+      newEnemy.increased = false;
+      newEnemy.speed = enemy.xSpeed * Math.random();
+      break;
   }
   return newEnemy;
 }
 
-function enemyMovement(enemy, timeCounter) {
+function enemyMovement(enemy) {
   switch (enemy.movement) {
     case "straight":
       enemy.y += enemy.ySpeed;
@@ -189,7 +249,8 @@ function enemyMovement(enemy, timeCounter) {
     case "sine":
       enemy.y += enemy.ySpeed;
       enemy.x =
-        enemy.baseX + enemy.amplitude * Math.sin(timeCounter * enemy.frequency);
+        enemy.baseX +
+        enemy.amplitude * Math.sin(trueTimeCounter * enemy.frequency);
       enemy.x = Math.min(enemy.x, canvas.width - enemy.width);
       enemy.x = Math.max(enemy.x, 0);
       break;
@@ -204,6 +265,32 @@ function enemyMovement(enemy, timeCounter) {
       break;
     case "hold":
       if (enemy.y < enemy.yLimit) enemy.y += enemy.ySpeed;
+      break;
+    case "homing":
+      let dx = playerX - enemy.x;
+      let dy = playerY - enemy.y;
+      let angle = Math.atan2(dy, dx);
+      enemy.x += Math.cos(angle) * enemy.speed;
+      enemy.y += Math.sin(angle) * enemy.speed;
+      break;
+    case "spread":
+      if (enemy.y < enemy.yLimit) enemy.y += enemy.ySpeed;
+      else if (!enemy.spreaded) {
+        enemy.spreaded = true;
+        let newEnemyRight = { ...enemy },
+          newEnemyLeft = { ...enemy };
+        newEnemyRight.x = Math.min(enemy.x + enemy.width, canvas.width);
+        newEnemyLeft.x = Math.max(enemy.x - enemy.width, 0);
+        temporaryEnemies.push(newEnemyRight);
+        temporaryEnemies.push(newEnemyLeft);
+      }
+      break;
+    case "loop":
+      if (enemy.y < enemy.yLimit) enemy.y += enemy.ySpeed;
+      else if (!enemy.increased) {
+        enemy.increased = true;
+        enemy.xSpeed = enemy.speed;
+      }
       break;
   }
   console.log(enemy.x);
@@ -220,9 +307,12 @@ function collision() {
         bullet.x + bullet.width >= enemy.x &&
         bullet.x <= enemy.x + enemy.width &&
         bullet.y + bullet.height >= enemy.y &&
-        bullet.y <= enemy.y + enemy.height
+        bullet.y <= enemy.y + enemy.height &&
+        !enemy.isInvincible
       ) {
         enemy.health -= bullet.projectileDamage;
+        enemy.isInvincible = true;
+        enemy.lastHitTime = trueTimeCounter;
         bullet.health--;
       }
     }
@@ -238,6 +328,13 @@ function collision() {
       enemy.y <= playerY + 64
     ) {
       playing = false;
+    }
+    if (trueTimeCounter - enemy.lastHitTime >= enemy.invincibleDuration) {
+      enemy.isInvincible = false;
+      enemy.visible = true;
+    } else {
+      if (Math.floor(trueTimeCounter / 100) % 2 == 0) enemy.visible = false;
+      else enemy.visible = true;
     }
   }
 }
@@ -255,6 +352,7 @@ const ctx = canvas.getContext("2d");
 let playerX = 0,
   playerY = canvas.height - 100;
 
+initImages();
 window.requestAnimationFrame(draw);
 
 function draw() {
@@ -281,10 +379,12 @@ function draw() {
     );
   }
 
-  ctx.fillStyle = "red";
   for (let i = 0; i < enemies.length; i++) {
     let enemy = enemies[i];
-    ctx.drawImage(enemyShip, enemy.x, enemy.y, enemy.width, enemy.height);
+    if (!enemy.visible)
+      ctx.globalAlpha = 0.5 + 0.6 * Math.abs(Math.sin(Date.now() / 50));
+    ctx.drawImage(enemy.image, enemy.x, enemy.y, enemy.width, enemy.height);
+    ctx.globalAlpha = 1.0;
   }
 
   ctx.fillStyle = "white";
