@@ -58,7 +58,7 @@ let playerMovementSpeed = 3,
   projectileSpeed = 10,
   projectileDamage = 20,
   shootingCounter = 0,
-  shootingCooldown = 1,
+  shootingCooldown = 20,
   waveSpawnCounter = 0,
   waveSpawnDelay = 1000,
   enemySpawnDelay = 60,
@@ -86,36 +86,36 @@ const enemyTypes = [
   },
   {
     id: "tank02",
-    health: 50,
-    weight: 2.5,
+    health: 100,
+    weight: 2,
     xSpeed: 4,
     ySpeed: 2,
     width: 64,
     height: 64,
     image: null,
-    movement: ["straight", "sine", "hold", "bounce", "homing"],
+    movement: ["straight", "sine", "hold", "bounce", "semiHoming"],
   },
   {
     id: "tank03",
-    health: 250,
-    weight: 2,
+    health: 500,
+    weight: 1.5,
     xSpeed: 7,
     ySpeed: 5,
     width: 75,
     height: 75,
     image: null,
-    movement: ["straight", "sine", "hold", "bounce", "spread", "homing"],
+    movement: ["loop", "hold", "bounce", "spread3", "semiHoming"],
   },
   {
     id: "tank04",
-    health: 1000,
-    weight: 1.5,
+    health: 5000,
+    weight: 1,
     xSpeed: 10,
     ySpeed: 5,
     width: 100,
     height: 100,
     image: null,
-    movement: ["spread", "sine", "hold", "bounce", "loop", "homing"],
+    movement: ["spread3", "hold", "loop", "semiHoming"],
   },
 ];
 //Game processing
@@ -171,18 +171,13 @@ function waveSpawn() {
     waveSpawnCounter >= waveSpawnDelay
   ) {
     currentWave++;
-    currentWaveTotalHealth = 20 + 10 * (currentWave ^ 2);
+    currentWaveTotalHealth = 20 + 20 * Math.pow(currentWave, 1.5);
     let temp = currentWaveTotalHealth;
     while (temp > 0) {
-      let dice = Math.floor(Math.random() * enemyTypes[0].weight + 1);
-      for (let i = 0; i < enemyTypes.length; i++) {
-        let enemy = { ...enemyTypes[i] };
-        if (dice < enemy.weight) {
-          temporaryEnemies.push(createEnemy(enemy));
-          temp -= enemy.health;
-          break;
-        }
-      }
+      let enemy = selectEnemy(temp);
+      if (enemy == null) break;
+      temporaryEnemies.push(createEnemy(enemy));
+      temp -= enemy.health;
     }
     waveSpawnCounter = -60;
   } else waveSpawnCounter++;
@@ -197,13 +192,35 @@ function waveSpawn() {
   enemies = enemies.filter((enemy) => enemy.y <= canvas.height - enemy.height);
 }
 
+function selectEnemy(totalHealth) {
+  let sumWeight = 0,
+    flag = 0;
+  for (let i = 0; i < enemyTypes.length; i++) sumWeight += enemyTypes[i].weight;
+  while (true) {
+    let number = sumWeight * Math.random();
+    let select = 0;
+    for (let i = 0; i < enemyTypes.length; i++) {
+      select += enemyTypes[i].weight;
+      if (number < select) {
+        if (enemyTypes[i].health <= totalHealth) return { ...enemyTypes[i] };
+        else {
+          flag++;
+          break;
+        }
+      }
+    }
+    if (flag == 3) break;
+  }
+  return null;
+}
+
 function createEnemy(enemy) {
   let newEnemy = {
     x: Math.random() * (canvas.width - enemy.width),
     y: 0,
     ySpeed: Math.random() * enemy.ySpeed,
     isInvincible: false,
-    invincibleDuration: 5,
+    invincibleDuration: 10,
     lastHitTime: 0,
     visible: true,
     image: enemy.image,
@@ -225,17 +242,17 @@ function createEnemy(enemy) {
     case "hold":
       newEnemy.yLimit = (Math.random() + 1) * canvas.height * 0.4;
       break;
-    case "homing":
-      newEnemy.speed = ((enemy.xSpeed + enemy.ySpeed) / 2) * Math.random;
+    case "semiHoming":
+      newEnemy.speed = ((enemy.xSpeed + enemy.ySpeed) / 3) * Math.random();
       break;
-    case "spread":
+    case "spread3":
       newEnemy.yLimit = (Math.random() + 1) * canvas.height * 0.4;
       newEnemy.spreaded = false;
       break;
     case "loop":
       newEnemy.yLimit = (Math.random() + 1) * canvas.height * 0.4;
       newEnemy.increased = false;
-      newEnemy.speed = enemy.xSpeed * Math.random();
+      newEnemy.speed = enemy.xSpeed * 2 * Math.random();
       break;
   }
   return newEnemy;
@@ -266,20 +283,26 @@ function enemyMovement(enemy) {
     case "hold":
       if (enemy.y < enemy.yLimit) enemy.y += enemy.ySpeed;
       break;
-    case "homing":
-      let dx = playerX - enemy.x;
-      let dy = playerY - enemy.y;
-      let angle = Math.atan2(dy, dx);
-      enemy.x += Math.cos(angle) * enemy.speed;
-      enemy.y += Math.sin(angle) * enemy.speed;
+    case "semiHoming":
+      if (enemy.y >= playerY) enemy.y += enemy.speed;
+      else {
+        let dx = playerX - enemy.x;
+        let dy = playerY - enemy.y;
+        let angle = Math.atan2(dy, dx);
+        enemy.x += Math.cos(angle) * enemy.speed;
+        enemy.y += Math.sin(angle) * enemy.speed;
+      }
       break;
-    case "spread":
+    case "spread3":
       if (enemy.y < enemy.yLimit) enemy.y += enemy.ySpeed;
       else if (!enemy.spreaded) {
         enemy.spreaded = true;
         let newEnemyRight = { ...enemy },
           newEnemyLeft = { ...enemy };
-        newEnemyRight.x = Math.min(enemy.x + enemy.width, canvas.width);
+        newEnemyRight.x = Math.min(
+          enemy.x + enemy.width,
+          canvas.width - enemy.width
+        );
         newEnemyLeft.x = Math.max(enemy.x - enemy.width, 0);
         temporaryEnemies.push(newEnemyRight);
         temporaryEnemies.push(newEnemyLeft);
@@ -291,9 +314,16 @@ function enemyMovement(enemy) {
         enemy.increased = true;
         enemy.xSpeed = enemy.speed;
       }
+      if (enemy.increased) {
+        enemy.x += enemy.xSpeed;
+        if (
+          enemy.x + enemy.xSpeed >= canvas.width - enemy.width ||
+          enemy.x + enemy.xSpeed < 0
+        )
+          enemy.xSpeed = -enemy.xSpeed;
+      }
       break;
   }
-  console.log(enemy.x);
 }
 
 function collision() {
@@ -310,7 +340,7 @@ function collision() {
         bullet.y <= enemy.y + enemy.height &&
         !enemy.isInvincible
       ) {
-        enemy.health -= bullet.projectileDamage;
+        enemy.health -= bullet.damage;
         enemy.isInvincible = true;
         enemy.lastHitTime = trueTimeCounter;
         bullet.health--;
@@ -333,8 +363,7 @@ function collision() {
       enemy.isInvincible = false;
       enemy.visible = true;
     } else {
-      if (Math.floor(trueTimeCounter / 100) % 2 == 0) enemy.visible = false;
-      else enemy.visible = true;
+      enemy.visible = false;
     }
   }
 }
@@ -349,6 +378,7 @@ function endScreen() {
 
 //Drawing
 const ctx = canvas.getContext("2d");
+ctx.imageSmoothingEnabled = false;
 let playerX = 0,
   playerY = canvas.height - 100;
 
@@ -381,8 +411,7 @@ function draw() {
 
   for (let i = 0; i < enemies.length; i++) {
     let enemy = enemies[i];
-    if (!enemy.visible)
-      ctx.globalAlpha = 0.5 + 0.6 * Math.abs(Math.sin(Date.now() / 50));
+    if (!enemy.visible) ctx.globalAlpha = 0.5;
     ctx.drawImage(enemy.image, enemy.x, enemy.y, enemy.width, enemy.height);
     ctx.globalAlpha = 1.0;
   }
