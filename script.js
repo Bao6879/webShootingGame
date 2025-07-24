@@ -43,6 +43,10 @@ function initImages() {
     enemyTypes[1].image = loadImage("images/tank02.png");
     enemyTypes[2].image = loadImage("images/tank03.png");
     enemyTypes[3].image = loadImage("images/tank04.png");
+    enemyTypes[4].image = loadImage("images/charge01.png");
+    enemyTypes[5].image = loadImage("images/charge02.png");
+    enemyTypes[6].image = loadImage("images/charge03.png");
+    enemyTypes[7].image = loadImage("images/charge04.png");
     playerShip = loadImage("images/player01.png");
     playerBullet = loadImage("images/bullet.png");
 }
@@ -68,6 +72,7 @@ let playerMovementSpeed = 3,
     spawnCounter = 0,
     trueTimeCounter = 0;
 let score = 0,
+    startTime = Date.now(),
     streak = 0,
     previousKill = 0,
     streakTimeReq = 300,
@@ -123,7 +128,7 @@ const enemyTypes = [
     },
     {
         id: "tank02",
-        health: 100,
+        health: 200,
         weight: 2,
         xSpeed: 4,
         ySpeed: 2,
@@ -161,13 +166,49 @@ const enemyTypes = [
         id: "charge01",
         health: 20,
         weight: 3,
-        xSpeed: 10,
+        xSpeed: 3,
         ySpeed: 5,
-        width: 100,
-        height: 100,
+        width: 50,
+        height: 50,
         image: null,
-        point: 100,
-        movement: ["straight", "jitter", "accel", "zigzag", "semiHoming", "charge"],
+        point: 5,
+        movement: ["spreadHoming"],
+    },
+    {
+        id: "charge02",
+        health: 50,
+        weight: 2,
+        xSpeed: 5,
+        ySpeed: 7,
+        width: 45,
+        height: 45,
+        image: null,
+        point: 20,
+        movement: ["random", "accel", "zigzag", "semiHoming", "charge"],
+    },
+    {
+        id: "charge03",
+        health: 200,
+        weight: 0.75,
+        xSpeed: 7,
+        ySpeed: 10,
+        width: 40,
+        height: 40,
+        image: null,
+        point: 50,
+        movement: ["random", "accel", "randomZigzag", "trueHoming", "superCharge", "spreadHoming"],
+    },
+    {
+        id: "charge04",
+        health: 500,
+        weight: 0.5,
+        xSpeed: 10,
+        ySpeed: 15,
+        width: 35,
+        height: 35,
+        image: null,
+        point: 70,
+        movement: ["spreadHoming", "random", "randomZigzag", "trueHoming"],
     },
 ];
 //Game processing
@@ -291,6 +332,19 @@ function createEnemy(enemy) {
             newEnemy.maxTurn = Math.random() * 2;
             newEnemy.speed = ((enemy.xSpeed + enemy.ySpeed) / 3) * Math.random();
             break;
+        case "trueHoming":
+            newEnemy.speed = ((enemy.xSpeed + enemy.ySpeed) / 3) * Math.random();
+            break;
+        case "spreadHoming":
+            newEnemy.yLimit = Math.random() * canvas.height * 0.4;
+            let dice = Math.floor(Math.random() * 101),
+                number = 3;
+            if (dice <= 70) number = 3;
+            else if (dice <= 95) number = 5;
+            else number = Math.floor(canvas.width / newEnemy.width);
+            newEnemy.spreadCount = number;
+            newEnemy.speed = ((enemy.xSpeed + enemy.ySpeed) / 3) * Math.random();
+            newEnemy.spreaded = false;
         case "spread3":
             newEnemy.yLimit = (Math.random() + 1) * canvas.height * 0.4;
             let temp = Math.floor(Math.random() * 101),
@@ -298,7 +352,7 @@ function createEnemy(enemy) {
             if (temp <= 70) count = 3;
             else if (temp <= 95) count = 5;
             else count = Math.floor(canvas.width / newEnemy.width);
-            newEnemy.spreadCount = 3;
+            newEnemy.spreadCount = count;
             newEnemy.spreaded = false;
             break;
         case "loop":
@@ -308,25 +362,49 @@ function createEnemy(enemy) {
             break;
         case "accel":
             newEnemy.lastCall = 0;
-            newEnemy.acceleration = Math.random() * 0.1;
-            newEnemy.delay = Math.floor(Math.random() * 20 + 50);
+            newEnemy.acceleration = Math.random() * 0.5;
+            newEnemy.delay = Math.floor(Math.random() * 10 + 10);
             break;
         case "random":
             newEnemy.lastCall = 0;
             newEnemy.originYSpeed = enemy.ySpeed;
             newEnemy.originXSpeed = enemy.xSpeed;
             newEnemy.xSpeed = enemy.xSpeed;
-            newEnemy.delay = Math.floor(Math.random() * 20 + 50);
+            newEnemy.delay = Math.floor(Math.random() * 20 + 30);
             break;
         case "jitter":
-            newEnemy.amplitude = enemy.xSpeed * Math.random() * 3;
+            newEnemy.amplitude = enemy.xSpeed * Math.random() * 5;
             newEnemy.lastCall = 0;
-            newEnemy.delay = Math.floor(Math.random() * 20 + 50);
+            newEnemy.delay = Math.floor(Math.random() * 10 + 10);
             break;
         case "zigzag":
-            newEnemy.amplitude = canvas.width * Math.random();
+            newEnemy.amplitude = (canvas.width / 2) * Math.random();
             newEnemy.originX = newEnemy.x;
             newEnemy.xSpeed = enemy.xSpeed;
+            break;
+        case "randomZigzag":
+            newEnemy.amplitude = (canvas.width / 2) * (Math.random() + 0.2);
+            newEnemy.originX = newEnemy.x;
+            newEnemy.xSpeed = enemy.xSpeed;
+            newEnemy.lastCall = 0;
+            newEnemy.delay = Math.floor(Math.random() * 20 + 20);
+            break;
+        case "charge":
+            newEnemy.speed = ((enemy.xSpeed + enemy.ySpeed) / 3) * (Math.random() + 1);
+            newEnemy.yLimit = Math.random() * canvas.height * 0.4;
+            newEnemy.charged = false;
+            newEnemy.lastCall = 0;
+            newEnemy.delay = (Math.random() + 1) * 60;
+            newEnemy.xSpeed = enemy.xSpeed;
+            break;
+        case "superCharge":
+            newEnemy.xSpeed = enemy.xSpeed;
+            newEnemy.speed = ((enemy.xSpeed + enemy.ySpeed) / 3) * (Math.random() + 2);
+            newEnemy.yLimit = Math.random() * canvas.height * 0.4;
+            newEnemy.charged = false;
+            newEnemy.lastCall = 0;
+            newEnemy.delay = (Math.random() + 1) * 60;
+            newEnemy.acceleration = Math.random() + 1.5;
             break;
     }
     return newEnemy;
@@ -362,11 +440,18 @@ function enemyMovement(enemy) {
                 enemy.y += Math.sin(angle) * enemy.speed;
             }
             break;
+        case "trueHoming":
+            let dx = playerX - enemy.x;
+            let dy = playerY - enemy.y;
+            let angle = Math.atan2(dy, dx);
+            enemy.x += Math.cos(angle) * enemy.speed;
+            enemy.y += Math.sin(angle) * enemy.speed;
+            break;
         case "spread3":
             if (enemy.y < enemy.yLimit) enemy.y += enemy.ySpeed;
             else if (!enemy.spreaded) {
                 enemy.spreaded = true;
-                let additional = enemy.width;
+                let additional = 0;
                 for (let i = 0; i < Math.floor(enemy.spreadCount / 2); i++) {
                     let newEnemyRight = { ...enemy },
                         newEnemyLeft = { ...enemy };
@@ -376,6 +461,30 @@ function enemyMovement(enemy) {
                     temporaryEnemies.push(newEnemyLeft);
                     additional += enemy.width;
                 }
+            }
+            break;
+        case "spreadHoming":
+            if (enemy.y < enemy.yLimit && !enemy.spreaded) enemy.y += enemy.ySpeed;
+            else if (!enemy.spreaded) {
+                enemy.spreaded = true;
+                let additional = 0;
+                for (let i = 0; i < Math.floor(enemy.spreadCount / 2); i++) {
+                    let newEnemyRight = { ...enemy },
+                        newEnemyLeft = { ...enemy };
+                    newEnemyLeft.speed += Math.random();
+                    newEnemyRight.speed += Math.random();
+                    newEnemyRight.x = Math.min(enemy.x + enemy.width + additional, canvas.width - enemy.width);
+                    newEnemyLeft.x = Math.max(enemy.x - enemy.width - additional, 0);
+                    temporaryEnemies.push(newEnemyRight);
+                    temporaryEnemies.push(newEnemyLeft);
+                    additional += enemy.width;
+                }
+            } else {
+                let dx = playerX - enemy.x;
+                let dy = playerY - enemy.y;
+                let angle = Math.atan2(dy, dx);
+                enemy.x += Math.cos(angle) * enemy.speed;
+                enemy.y += Math.sin(angle) * enemy.speed;
             }
             break;
         case "loop":
@@ -398,10 +507,10 @@ function enemyMovement(enemy) {
             break;
         case "random":
             if (trueTimeCounter - enemy.lastCall >= enemy.delay) {
-                if (Math.random() < 0.5) enemy.xSpeed = Math.random() * originXSpeed;
-                else enemy.xSpeed = -Math.random() * originXSpeed;
-                if (Math.random() < 0.5) enemy.ySpeed = Math.random() * originYSpeed;
-                else enemy.ySpeed = -Math.random() * originYSpeed;
+                if (Math.random() < 0.5) enemy.xSpeed = Math.random() * enemy.originXSpeed;
+                else enemy.xSpeed = -Math.random() * enemy.originXSpeed;
+                if (Math.random() < 0.7) enemy.ySpeed = Math.random() * enemy.originYSpeed;
+                else enemy.ySpeed = -Math.random() * enemy.originYSpeed;
                 enemy.lastCall = trueTimeCounter;
             }
             enemy.y += enemy.ySpeed;
@@ -410,10 +519,10 @@ function enemyMovement(enemy) {
             enemy.x = Math.max(enemy.x, 0);
             break;
         case "jitter":
+            enemy.y += enemy.ySpeed;
             if (trueTimeCounter - enemy.lastCall >= enemy.delay) {
                 if (Math.random() < 0.5) enemy.x += Math.random() * enemy.amplitude;
                 else enemy.x -= Math.random() * enemy.amplitude;
-                enemy.y += enemy.ySpeed;
                 enemy.x = Math.min(enemy.x, canvas.width - enemy.width);
                 enemy.x = Math.max(enemy.x, 0);
                 enemy.lastCall = trueTimeCounter;
@@ -431,6 +540,54 @@ function enemyMovement(enemy) {
                 enemy.xSpeed = -enemy.xSpeed;
             enemy.x = Math.min(enemy.x, canvas.width - enemy.width);
             enemy.x = Math.max(enemy.x, 0);
+            break;
+        case "randomZigzag":
+            enemy.y += enemy.ySpeed;
+            enemy.x += enemy.xSpeed;
+            if (trueTimeCounter - enemy.lastCall >= enemy.delay) {
+                enemy.amplitude = (canvas.width / 2) * (Math.random() + 0.2);
+                enemy.lastCall = trueTimeCounter;
+            }
+            if (
+                enemy.x + enemy.xSpeed >= canvas.width - enemy.width ||
+                enemy.x + enemy.xSpeed < 0 ||
+                enemy.x + enemy.xSpeed >= enemy.originX + enemy.amplitude - enemy.width ||
+                enemy.x + enemy.xSpeed < enemy.originX - enemy.amplitude
+            )
+                enemy.xSpeed = -enemy.xSpeed;
+            enemy.x = Math.min(enemy.x, canvas.width - enemy.width);
+            enemy.x = Math.max(enemy.x, 0);
+            break;
+        case "charge":
+            if (enemy.y < enemy.yLimit) enemy.y += enemy.ySpeed;
+            else if (!enemy.charged) {
+                enemy.charged = true;
+                let dx = playerX - enemy.x;
+                let dy = playerY - enemy.y;
+                let angle = Math.atan2(dy, dx);
+                enemy.xSpeed = Math.cos(angle) * enemy.speed;
+                enemy.ySpeed = Math.sin(angle) * enemy.speed;
+                enemy.lastCall = trueTimeCounter;
+            } else if (trueTimeCounter - enemy.lastCall >= enemy.delay) {
+                enemy.y += enemy.ySpeed;
+                enemy.x += enemy.xSpeed;
+            }
+            break;
+        case "superCharge":
+            if (enemy.y < enemy.yLimit) enemy.y += enemy.ySpeed;
+            else if (!enemy.charged) {
+                enemy.speed *= enemy.acceleration;
+                enemy.charged = true;
+                let dx = playerX - enemy.x;
+                let dy = playerY - enemy.y;
+                let angle = Math.atan2(dy, dx);
+                enemy.xSpeed = Math.cos(angle) * enemy.speed;
+                enemy.ySpeed = Math.sin(angle) * enemy.speed;
+                enemy.lastCall = trueTimeCounter;
+            } else if (trueTimeCounter - enemy.lastCall >= enemy.delay) {
+                enemy.y += enemy.ySpeed;
+                enemy.x += enemy.xSpeed;
+            }
             break;
     }
 }
@@ -462,7 +619,7 @@ function collision() {
                 streak++;
                 streakAlpha = 0;
                 streakCounter = 0;
-                streakTimeReq = 80 + 220 * Math.pow(0.7, streak - 1);
+                streakTimeReq = 80 + 220 * Math.pow(0.8, streak - 1);
                 previousKill = trueTimeCounter;
             } else {
                 streak = 1;
@@ -493,10 +650,22 @@ function collision() {
 function endScreen() {
     if (!playing) {
         ctx.textAlign = "center";
-        ctx.strokeStyle = "rgba(255 0 0 1)";
+        ctx.fillStyle = `rgb(255 0 0)`;
         ctx.font = "bold 100px Arial";
         ctx.fillText("YOU LOST!", canvas.width / 2, canvas.height / 2);
+        ctx.fillStyle = `rgb(255 215 0)`;
+        ctx.font = "50px Arial";
+        let elapsedTime = (Date.now() - startTime) / 1000;
+        let timeScore = Math.floor(elapsedTime * 5);
+        ctx.fillStyle = `rgb(0 255 0)`;
+        ctx.fillText("You survived for: " + `${elapsedTime.toFixed(2)}` + " seconds", canvas.width / 2, canvas.height / 2 + 80);
+        ctx.fillStyle = `rgb(0 0 255)`;
+        ctx.fillText("Game score: " + score, canvas.width / 2, canvas.height / 2 + 130);
+        ctx.fillText("Time score: " + timeScore, canvas.width / 2, canvas.height / 2 + 180);
+        ctx.fillStyle = `rgb(255 255 255)`;
+        ctx.fillText("Total score: " + (score + timeScore), canvas.width / 2, canvas.height / 2 + 230);
         ctx.textAlign = "left";
+        return;
     }
 }
 
@@ -539,6 +708,12 @@ function draw() {
 
     ctx.font = "30px monospace";
     ctx.fillText("Score: " + score, canvas.width - 250, 40);
+    let elapsedTime = Math.floor((Date.now() - startTime) / 1000); // in seconds
+
+    let minutes = Math.floor(elapsedTime / 60);
+    let seconds = elapsedTime % 60;
+    let timeText = `Time: ${minutes}:${seconds.toString().padStart(2, "0")}`;
+    ctx.fillText(timeText, canvas.width - 250, 80);
 
     if (streak >= 2) {
         if (streakCounter < streakDisplayTime) streakAlpha = Math.min(streakAlpha + streakFadeSpeed, 1);
@@ -553,5 +728,6 @@ function draw() {
     }
 
     endScreen();
+    if (!playing) return;
     window.requestAnimationFrame(draw);
 }
