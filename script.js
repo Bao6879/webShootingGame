@@ -11,6 +11,11 @@ document.addEventListener("keydown", (event) => {
     else if (key == "w" || key == "w") wPressed = true;
     else if (key == "S" || key == "s") sPressed = true;
     else if (key == "Enter") shooting = true;
+    else if (key == "Escape") {
+        if (!paused) pauseStartTime = Date.now();
+        else totalPausedTime += Date.now() - pauseStartTime;
+        paused = !paused;
+    } else if (key == "R" || key == "r") restartGame();
 });
 
 document.addEventListener("keyup", (event) => {
@@ -47,6 +52,10 @@ function initImages() {
     enemyTypes[5].image = loadImage("images/charge02.png");
     enemyTypes[6].image = loadImage("images/charge03.png");
     enemyTypes[7].image = loadImage("images/charge04.png");
+    enemyTypes[8].image = loadImage("images/shoot01.png");
+    enemyTypes[9].image = loadImage("images/shoot02.png");
+    enemyTypes[10].image = loadImage("images/shoot03.png");
+    enemyTypes[11].image = loadImage("images/shoot04.png");
     playerShip = loadImage("images/player01.png");
     playerBullet = loadImage("images/bullet.png");
 }
@@ -57,22 +66,27 @@ let aPressed = false,
     dPressed = false,
     wPressed = false,
     shooting = false,
-    playing = true;
+    playing = true,
+    paused = false;
+let startTime = Date.now(),
+    pauseStartTime = null,
+    totalPausedTime = 0,
+    endTime = null;
 let playerMovementSpeed = 3,
     projectileSpeed = 10,
     projectileDamage = 20,
     shootingCounter = 0,
     shootingCooldown = 20,
     waveSpawnCounter = 0,
-    waveSpawnDelay = 1000,
-    enemySpawnDelay = 60,
+    waveSpawnDelay = 500,
+    enemySpawnDelay = 30,
     enemySpawnCounter = 0,
     currentWave = 0,
     currentWaveTotalHealth = 0,
     spawnCounter = 0,
     trueTimeCounter = 0;
 let score = 0,
-    startTime = Date.now(),
+    totalTime = 0,
     streak = 0,
     previousKill = 0,
     streakTimeReq = 300,
@@ -80,9 +94,7 @@ let score = 0,
     streakCounter = 0,
     currentMultiplier = 1;
 let playerProjectiles = [],
-    previousPlayerProjectiles = [],
     enemies = [],
-    previousEnemies = [],
     temporaryEnemies = [];
 const streakDisplayTime = 300,
     streakFadeSpeed = 0.02;
@@ -116,9 +128,10 @@ const streakNames = [
 const enemyTypes = [
     {
         id: "tank01",
+        type: "melee",
         health: 50,
         weight: 2.75,
-        xSpeed: 2.5,
+        xSpeed: 4,
         ySpeed: 1,
         width: 50,
         height: 50,
@@ -128,9 +141,10 @@ const enemyTypes = [
     },
     {
         id: "tank02",
+        type: "melee",
         health: 200,
-        weight: 2,
-        xSpeed: 4,
+        weight: 2.5,
+        xSpeed: 3,
         ySpeed: 2,
         width: 64,
         height: 64,
@@ -140,46 +154,50 @@ const enemyTypes = [
     },
     {
         id: "tank03",
+        type: "melee",
         health: 500,
-        weight: 1.5,
+        weight: 2.5,
         xSpeed: 7,
         ySpeed: 5,
         width: 75,
         height: 75,
         image: null,
         point: 70,
-        movement: ["loop", "hold", "bounce", "zigzag", "spread3", "semiHoming", "random"],
+        movement: ["loop", "hold", "bounce", "zigzag", "spread", "semiHoming", "random"],
     },
     {
         id: "tank04",
+        type: "melee",
         health: 5000,
-        weight: 1,
+        weight: 1.25,
         xSpeed: 10,
         ySpeed: 5,
         width: 100,
         height: 100,
         image: null,
         point: 100,
-        movement: ["spread3", "hold", "loop", "random", "semiHoming"],
+        movement: ["spread", "hold", "loop", "random", "semiHoming"],
     },
     {
         id: "charge01",
+        type: "melee",
         health: 20,
-        weight: 3,
+        weight: 3.5,
         xSpeed: 3,
-        ySpeed: 5,
+        ySpeed: 4,
         width: 50,
         height: 50,
         image: null,
         point: 5,
-        movement: ["spreadHoming"],
+        movement: ["straight", "jitter", "accel", "zigzag", "semiHoming", "charge"],
     },
     {
         id: "charge02",
+        type: "melee",
         health: 50,
         weight: 2,
-        xSpeed: 5,
-        ySpeed: 7,
+        xSpeed: 4,
+        ySpeed: 5,
         width: 45,
         height: 45,
         image: null,
@@ -188,10 +206,11 @@ const enemyTypes = [
     },
     {
         id: "charge03",
+        type: "melee",
         health: 200,
-        weight: 0.75,
-        xSpeed: 7,
-        ySpeed: 10,
+        weight: 1.5,
+        xSpeed: 8,
+        ySpeed: 7,
         width: 40,
         height: 40,
         image: null,
@@ -200,20 +219,73 @@ const enemyTypes = [
     },
     {
         id: "charge04",
+        type: "melee",
         health: 500,
-        weight: 0.5,
+        weight: 1,
         xSpeed: 10,
-        ySpeed: 15,
+        ySpeed: 8,
         width: 35,
         height: 35,
         image: null,
         point: 70,
-        movement: ["spreadHoming", "random", "randomZigzag", "trueHoming"],
+        movement: ["spreadHoming", "random", "randomZigzag", "trueHoming", "hyperCharge"],
+    },
+    {
+        id: "shoot01",
+        type: "range",
+        health: 20,
+        weight: 3.5,
+        xSpeed: 3,
+        ySpeed: 4,
+        width: 50,
+        height: 50,
+        image: null,
+        point: 15,
+        movement: ["loop", "hold", "retreat"],
+    },
+    {
+        id: "shoot02",
+        type: "range",
+        health: 50,
+        weight: 2,
+        xSpeed: 3,
+        ySpeed: 4,
+        width: 50,
+        height: 50,
+        image: null,
+        point: 40,
+        movement: ["loop", "hold", "retreat"],
+    },
+    {
+        id: "shoot03",
+        type: "range",
+        health: 200,
+        weight: 1.5,
+        xSpeed: 3,
+        ySpeed: 4,
+        width: 50,
+        height: 50,
+        image: null,
+        point: 100,
+        movement: ["loop", "hold", "retreat", "semiMirror"],
+    },
+    {
+        id: "shoot04",
+        type: "range",
+        health: 500,
+        weight: 1,
+        xSpeed: 3,
+        ySpeed: 4,
+        width: 50,
+        height: 50,
+        image: null,
+        point: 150,
+        movement: ["loop", "hold", "trueMirror"],
     },
 ];
 //Game processing
 function process() {
-    if (playing) {
+    if (playing && !paused) {
         updateFPS();
         playerFunctions();
         waveSpawn();
@@ -256,7 +328,7 @@ function waveSpawn() {
     }
     if (hpCount <= currentWaveTotalHealth * 0.5 || waveSpawnCounter >= waveSpawnDelay) {
         currentWave++;
-        currentWaveTotalHealth = 20 + 20 * Math.pow(currentWave, 1.5);
+        currentWaveTotalHealth = 20 + 20 * Math.pow(currentWave, 1.1);
         let temp = currentWaveTotalHealth;
         while (temp > 0) {
             let enemy = selectEnemy(temp);
@@ -305,7 +377,7 @@ function createEnemy(enemy) {
         y: 0,
         ySpeed: Math.random() * enemy.ySpeed,
         isInvincible: false,
-        invincibleDuration: 10,
+        invincibleDuration: 5,
         lastHitTime: 0,
         visible: true,
         image: enemy.image,
@@ -326,14 +398,15 @@ function createEnemy(enemy) {
             newEnemy.xSpeed = enemy.xSpeed * Math.random();
             break;
         case "hold":
-            newEnemy.yLimit = (Math.random() + 1) * canvas.height * 0.4;
+            if (enemy.type == "melee") newEnemy.yLimit = (Math.random() + 1) * canvas.height * 0.4;
+            else newEnemy.yLimit = Math.random() * canvas.height * 0.3;
             break;
         case "semiHoming":
             newEnemy.maxTurn = Math.random() * 2;
-            newEnemy.speed = ((enemy.xSpeed + enemy.ySpeed) / 3) * Math.random();
+            newEnemy.speed = ((enemy.xSpeed + enemy.ySpeed) / 2) * Math.random();
             break;
         case "trueHoming":
-            newEnemy.speed = ((enemy.xSpeed + enemy.ySpeed) / 3) * Math.random();
+            newEnemy.speed = ((enemy.xSpeed + enemy.ySpeed) / 4) * Math.random();
             break;
         case "spreadHoming":
             newEnemy.yLimit = Math.random() * canvas.height * 0.4;
@@ -345,8 +418,9 @@ function createEnemy(enemy) {
             newEnemy.spreadCount = number;
             newEnemy.speed = ((enemy.xSpeed + enemy.ySpeed) / 3) * Math.random();
             newEnemy.spreaded = false;
-        case "spread3":
-            newEnemy.yLimit = (Math.random() + 1) * canvas.height * 0.4;
+        case "spread":
+            if (enemy.type == "melee") newEnemy.yLimit = (Math.random() + 1) * canvas.height * 0.4;
+            else newEnemy.yLimit = Math.random() * canvas.height * 0.3;
             let temp = Math.floor(Math.random() * 101),
                 count = 3;
             if (temp <= 70) count = 3;
@@ -355,8 +429,10 @@ function createEnemy(enemy) {
             newEnemy.spreadCount = count;
             newEnemy.spreaded = false;
             break;
+        case "lowSpread":
         case "loop":
-            newEnemy.yLimit = (Math.random() + 1) * canvas.height * 0.4;
+            if (enemy.type == "melee") newEnemy.yLimit = (Math.random() + 1) * canvas.height * 0.4;
+            else newEnemy.yLimit = Math.random() * canvas.height * 0.3;
             newEnemy.increased = false;
             newEnemy.speed = enemy.xSpeed * Math.random();
             break;
@@ -406,6 +482,26 @@ function createEnemy(enemy) {
             newEnemy.delay = (Math.random() + 1) * 60;
             newEnemy.acceleration = Math.random() + 1.5;
             break;
+        case "hyperCharge":
+            newEnemy.xSpeed = enemy.xSpeed;
+            newEnemy.speed = ((enemy.xSpeed + enemy.ySpeed) / 3) * (Math.random() + 2);
+            newEnemy.yLimit = Math.random() * canvas.height * 0.4;
+            newEnemy.charged = false;
+            newEnemy.lastCall = 0;
+            newEnemy.delay = (Math.random() + 1) * 60;
+            newEnemy.acceleration = Math.random() + 1.5;
+            break;
+        case "retreat":
+            newEnemy.retreated = false;
+            newEnemy.yLimit = Math.random() * canvas.height * 0.3;
+            break;
+        case "semiMirror":
+            newEnemy.yLimit = Math.random() * canvas.height * 0.3;
+            newEnemy.maxTurn = Math.random() * 5;
+            break;
+        case "trueMirror":
+            newEnemy.yLimit = Math.random() * canvas.height * 0.4;
+            break;
     }
     return newEnemy;
 }
@@ -447,7 +543,7 @@ function enemyMovement(enemy) {
             enemy.x += Math.cos(angle) * enemy.speed;
             enemy.y += Math.sin(angle) * enemy.speed;
             break;
-        case "spread3":
+        case "spread":
             if (enemy.y < enemy.yLimit) enemy.y += enemy.ySpeed;
             else if (!enemy.spreaded) {
                 enemy.spreaded = true;
@@ -559,7 +655,7 @@ function enemyMovement(enemy) {
             enemy.x = Math.max(enemy.x, 0);
             break;
         case "charge":
-            if (enemy.y < enemy.yLimit) enemy.y += enemy.ySpeed;
+            if (enemy.y < enemy.yLimit && !enemy.charged) enemy.y += enemy.ySpeed;
             else if (!enemy.charged) {
                 enemy.charged = true;
                 let dx = playerX - enemy.x;
@@ -574,7 +670,7 @@ function enemyMovement(enemy) {
             }
             break;
         case "superCharge":
-            if (enemy.y < enemy.yLimit) enemy.y += enemy.ySpeed;
+            if (enemy.y < enemy.yLimit && !enemy.charged) enemy.y += enemy.ySpeed;
             else if (!enemy.charged) {
                 enemy.speed *= enemy.acceleration;
                 enemy.charged = true;
@@ -589,6 +685,43 @@ function enemyMovement(enemy) {
                 enemy.x += enemy.xSpeed;
             }
             break;
+        case "hyperCharge":
+            if (enemy.y < enemy.yLimit && !enemy.charged) enemy.y += enemy.ySpeed;
+            else if (!enemy.charged) {
+                enemy.speed *= enemy.acceleration;
+                enemy.charged = true;
+                let dx = playerX - enemy.x;
+                let dy = playerY - enemy.y;
+                let angle = Math.atan2(dy, dx);
+                enemy.xSpeed = Math.cos(angle) * enemy.speed;
+                enemy.ySpeed = Math.sin(angle) * enemy.speed;
+                enemy.lastCall = trueTimeCounter;
+            } else if (trueTimeCounter - enemy.lastCall >= enemy.delay) {
+                enemy.y += enemy.ySpeed;
+                enemy.x += enemy.xSpeed;
+            }
+            if (enemy.charged && trueTimeCounter - enemy.lastCall >= 200) enemy.y = 10000;
+            if (enemy.y + enemy.height + enemy.ySpeed >= canvas.height || enemy.y + enemy.ySpeed <= 0) enemy.ySpeed = -enemy.ySpeed;
+            if (enemy.x + enemy.width + enemy.xSpeed >= canvas.width || enemy.x + enemy.xSpeed <= 0) enemy.xSpeed = -enemy.xSpeed;
+            break;
+        case "retreat":
+            if (enemy.y < enemy.yLimit && !enemy.retreated) enemy.y += enemy.ySpeed;
+            else if (!enemy.retreated) {
+                enemy.ySpeed = -enemy.ySpeed;
+                enemy.retreated = true;
+            }
+            enemy.y += enemy.ySpeed;
+            if (enemy.retreated && enemy.y == 0) enemy.ySpeed = 0;
+        case "semiMirror":
+            if (enemy.y < enemy.yLimit) enemy.y += enemy.ySpeed;
+            let deltaX = playerX - enemy.x;
+            if (deltaX < 0) deltaX = Math.max(deltaX, -enemy.maxTurn);
+            else deltaX = Math.min(deltaX, enemy.maxTurn);
+            enemy.x += deltaX;
+        case "trueMirror":
+            if (enemy.y < enemy.yLimit) enemy.y += enemy.ySpeed;
+            let dX = playerX - enemy.x;
+            enemy.x += dX;
     }
 }
 
@@ -636,6 +769,7 @@ function collision() {
     for (let i = 0; i < enemies.length; i++) {
         let enemy = enemies[i];
         if (enemy.x + enemy.width >= playerX + 17 && enemy.x <= playerX + 47 && enemy.y + enemy.height >= playerY + 34 && enemy.y <= playerY + 64) {
+            endTime = Date.now();
             playing = false;
         }
         if (trueTimeCounter - enemy.lastHitTime >= enemy.invincibleDuration) {
@@ -647,26 +781,44 @@ function collision() {
     }
 }
 
-function endScreen() {
-    if (!playing) {
-        ctx.textAlign = "center";
-        ctx.fillStyle = `rgb(255 0 0)`;
-        ctx.font = "bold 100px Arial";
-        ctx.fillText("YOU LOST!", canvas.width / 2, canvas.height / 2);
-        ctx.fillStyle = `rgb(255 215 0)`;
-        ctx.font = "50px Arial";
-        let elapsedTime = (Date.now() - startTime) / 1000;
-        let timeScore = Math.floor(elapsedTime * 5);
-        ctx.fillStyle = `rgb(0 255 0)`;
-        ctx.fillText("You survived for: " + `${elapsedTime.toFixed(2)}` + " seconds", canvas.width / 2, canvas.height / 2 + 80);
-        ctx.fillStyle = `rgb(0 0 255)`;
-        ctx.fillText("Game score: " + score, canvas.width / 2, canvas.height / 2 + 130);
-        ctx.fillText("Time score: " + timeScore, canvas.width / 2, canvas.height / 2 + 180);
-        ctx.fillStyle = `rgb(255 255 255)`;
-        ctx.fillText("Total score: " + (score + timeScore), canvas.width / 2, canvas.height / 2 + 230);
-        ctx.textAlign = "left";
-        return;
-    }
+function restartGame() {
+    aPressed = false;
+    sPressed = false;
+    dPressed = false;
+    wPressed = false;
+    shooting = false;
+    playing = true;
+    paused = false;
+    startTime = Date.now();
+    pauseStartTime = null;
+    totalPausedTime = 0;
+    endTime = null;
+    playerMovementSpeed = 3;
+    projectileSpeed = 10;
+    projectileDamage = 30;
+    shootingCounter = 0;
+    shootingCooldown = 10;
+    waveSpawnCounter = 0;
+    waveSpawnDelay = 200;
+    enemySpawnDelay = 60;
+    enemySpawnCounter = 0;
+    currentWave = 0;
+    currentWaveTotalHealth = 0;
+    spawnCounter = 0;
+    trueTimeCounter = 0;
+    score = 0;
+    totalTime = 0;
+    streak = 0;
+    previousKill = 0;
+    streakTimeReq = 300;
+    streakAlpha = 0;
+    streakCounter = 0;
+    currentMultiplier = 1;
+    playerProjectiles = [];
+    enemies = [];
+    temporaryEnemies = [];
+    playerX = 0;
+    playerY = canvas.height - 100;
 }
 
 //Drawing
@@ -708,12 +860,13 @@ function draw() {
 
     ctx.font = "30px monospace";
     ctx.fillText("Score: " + score, canvas.width - 250, 40);
-    let elapsedTime = Math.floor((Date.now() - startTime) / 1000); // in seconds
-
-    let minutes = Math.floor(elapsedTime / 60);
-    let seconds = elapsedTime % 60;
-    let timeText = `Time: ${minutes}:${seconds.toString().padStart(2, "0")}`;
-    ctx.fillText(timeText, canvas.width - 250, 80);
+    if (!paused && playing) {
+        let elapsedTime = Math.floor((Date.now() - startTime - totalPausedTime) / 1000);
+        let minutes = Math.floor(elapsedTime / 60);
+        let seconds = elapsedTime % 60;
+        let timeText = `Time: ${minutes}:${seconds.toString().padStart(2, "0")}`;
+        ctx.fillText(timeText, canvas.width - 250, 80);
+    }
 
     if (streak >= 2) {
         if (streakCounter < streakDisplayTime) streakAlpha = Math.min(streakAlpha + streakFadeSpeed, 1);
@@ -728,6 +881,35 @@ function draw() {
     }
 
     endScreen();
-    if (!playing) return;
+
+    if (paused) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "white";
+        ctx.font = "30px Arial";
+        ctx.fillText("Paused", canvas.width / 2 - 50, canvas.height / 2);
+    }
     window.requestAnimationFrame(draw);
+}
+
+function endScreen() {
+    if (!playing) {
+        ctx.textAlign = "center";
+        ctx.fillStyle = `rgb(255 0 0)`;
+        ctx.font = "bold 100px Arial";
+        ctx.fillText("YOU LOST!", canvas.width / 2, canvas.height / 2);
+        ctx.fillStyle = `rgb(255 215 0)`;
+        ctx.font = "50px Arial";
+        let elapsedTime = (endTime - startTime - totalPausedTime) / 1000;
+        let timeScore = Math.floor(elapsedTime * 5);
+        ctx.fillStyle = `rgb(0 255 0)`;
+        ctx.fillText("You survived for: " + `${elapsedTime.toFixed(2)}` + " seconds", canvas.width / 2, canvas.height / 2 + 80);
+        ctx.fillStyle = `rgb(0 0 255)`;
+        ctx.fillText("Game score: " + score, canvas.width / 2, canvas.height / 2 + 130);
+        ctx.fillText("Time score: " + timeScore, canvas.width / 2, canvas.height / 2 + 180);
+        ctx.fillStyle = `rgb(255 255 255)`;
+        ctx.fillText("Total score: " + (score + timeScore), canvas.width / 2, canvas.height / 2 + 230);
+        ctx.fillText("Click R to Restart...", canvas.width / 2, canvas.height / 2 + 280);
+        ctx.textAlign = "left";
+    }
 }
