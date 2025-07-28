@@ -37,27 +37,37 @@ function updateFPS() {
 }
 
 let playerShip = null,
-    playerBullet = null;
+    playerBullet = null,
+    normalBullet = null,
+    bounceBullet = null,
+    homingBullet = null;
 function loadImage(src) {
     const img = new Image();
     img.src = src;
     return img;
 }
 function initImages() {
-    enemyTypes[0].image = loadImage("images/tank01.png");
-    enemyTypes[1].image = loadImage("images/tank02.png");
-    enemyTypes[2].image = loadImage("images/tank03.png");
-    enemyTypes[3].image = loadImage("images/tank04.png");
-    enemyTypes[4].image = loadImage("images/charge01.png");
-    enemyTypes[5].image = loadImage("images/charge02.png");
-    enemyTypes[6].image = loadImage("images/charge03.png");
-    enemyTypes[7].image = loadImage("images/charge04.png");
-    enemyTypes[8].image = loadImage("images/shoot01.png");
-    enemyTypes[9].image = loadImage("images/shoot02.png");
-    enemyTypes[10].image = loadImage("images/shoot03.png");
-    enemyTypes[11].image = loadImage("images/shoot04.png");
-    playerShip = loadImage("images/player01.png");
-    playerBullet = loadImage("images/bullet.png");
+    enemyTypes[0].image = loadImage("images/enemy/tank01.png");
+    enemyTypes[1].image = loadImage("images/enemy/tank02.png");
+    enemyTypes[2].image = loadImage("images/enemy/tank03.png");
+    enemyTypes[3].image = loadImage("images/enemy/tank04.png");
+    enemyTypes[4].image = loadImage("images/enemy/charge01.png");
+    enemyTypes[5].image = loadImage("images/enemy/charge02.png");
+    enemyTypes[6].image = loadImage("images/enemy/charge03.png");
+    enemyTypes[7].image = loadImage("images/enemy/charge04.png");
+    enemyTypes[8].image = loadImage("images/enemy/shoot01.png");
+    enemyTypes[9].image = loadImage("images/enemy/shoot02.png");
+    enemyTypes[10].image = loadImage("images/enemy/shoot03.png");
+    enemyTypes[11].image = loadImage("images/enemy/shoot04.png");
+    enemyTypes[12].image = loadImage("images/enemy/sniper01.png");
+    enemyTypes[13].image = loadImage("images/enemy/sniper02.png");
+    enemyTypes[14].image = loadImage("images/enemy/sniper03.png");
+    enemyTypes[15].image = loadImage("images/enemy/sniper04.png");
+    normalBullet = loadImage("images/player/bullet01.png");
+    homingBullet = loadImage("images/player/bullet01.png");
+    bounceBullet = loadImage("images/player/bullet01.png");
+    playerShip = loadImage("images/player/player01.png");
+    playerBullet = loadImage("images/player/bullet01.png");
 }
 
 //Game variables
@@ -72,7 +82,11 @@ let startTime = Date.now(),
     pauseStartTime = null,
     totalPausedTime = 0,
     endTime = null;
-let playerMovementSpeed = 3,
+let playerHealth = 100,
+    playerInvincible = false,
+    playerLastHit = 0,
+    playerInvincibleDuration = 10,
+    playerMovementSpeed = 3,
     projectileSpeed = 10,
     projectileDamage = 20,
     shootingCounter = 0,
@@ -95,7 +109,8 @@ let score = 0,
     currentMultiplier = 1;
 let playerProjectiles = [],
     enemies = [],
-    temporaryEnemies = [];
+    temporaryEnemies = [],
+    enemyProjectiles = [];
 const streakDisplayTime = 300,
     streakFadeSpeed = 0.02;
 const streakNames = [
@@ -125,11 +140,33 @@ const streakNames = [
     "Godlike",
     "Ungodly",
 ];
+const abilities = [
+    {
+        name: "shield",
+        compatible: 1,
+    },
+    {
+        name: "berserk",
+        compatible: 1,
+    },
+    {
+        name: "revive",
+        compatible: 2,
+    },
+    {
+        name: "heal",
+        compatible: 3,
+    },
+    {
+        name: "preserve",
+        compatible: 3,
+    },
+];
 const enemyTypes = [
     {
         id: "tank01",
         type: "melee",
-        health: 50,
+        maxHealth: 50,
         weight: 2.75,
         xSpeed: 4,
         ySpeed: 1,
@@ -142,7 +179,7 @@ const enemyTypes = [
     {
         id: "tank02",
         type: "melee",
-        health: 200,
+        maxHealth: 200,
         weight: 2.5,
         xSpeed: 3,
         ySpeed: 2,
@@ -155,7 +192,7 @@ const enemyTypes = [
     {
         id: "tank03",
         type: "melee",
-        health: 500,
+        maxHealth: 500,
         weight: 2.5,
         xSpeed: 7,
         ySpeed: 5,
@@ -168,7 +205,7 @@ const enemyTypes = [
     {
         id: "tank04",
         type: "melee",
-        health: 5000,
+        maxHealth: 5000,
         weight: 1.25,
         xSpeed: 10,
         ySpeed: 5,
@@ -181,7 +218,7 @@ const enemyTypes = [
     {
         id: "charge01",
         type: "melee",
-        health: 20,
+        maxHealth: 20,
         weight: 3.5,
         xSpeed: 3,
         ySpeed: 4,
@@ -194,7 +231,7 @@ const enemyTypes = [
     {
         id: "charge02",
         type: "melee",
-        health: 50,
+        maxHealth: 50,
         weight: 2,
         xSpeed: 4,
         ySpeed: 5,
@@ -207,7 +244,7 @@ const enemyTypes = [
     {
         id: "charge03",
         type: "melee",
-        health: 200,
+        maxHealth: 200,
         weight: 1.5,
         xSpeed: 8,
         ySpeed: 7,
@@ -220,7 +257,7 @@ const enemyTypes = [
     {
         id: "charge04",
         type: "melee",
-        health: 500,
+        maxHealth: 500,
         weight: 1,
         xSpeed: 10,
         ySpeed: 8,
@@ -233,7 +270,7 @@ const enemyTypes = [
     {
         id: "shoot01",
         type: "range",
-        health: 20,
+        maxHealth: 20,
         weight: 3.5,
         xSpeed: 3,
         ySpeed: 4,
@@ -241,45 +278,145 @@ const enemyTypes = [
         height: 50,
         image: null,
         point: 15,
+        track: false,
+        bulletSpeed: 4,
+        shotDelay: 15,
+        damage: 10,
+        bulletTypes: ["normal"],
+        shooting: ["straight1"],
         movement: ["loop", "hold", "retreat"],
     },
     {
         id: "shoot02",
         type: "range",
-        health: 50,
+        maxHealth: 50,
         weight: 2,
-        xSpeed: 3,
+        xSpeed: 5,
         ySpeed: 4,
         width: 50,
         height: 50,
         image: null,
         point: 40,
+        track: false,
+        bulletSpeed: 6,
+        shotDelay: 12,
+        damage: 30,
+        bulletTypes: ["normal", "homing"],
+        shooting: ["side1"],
         movement: ["loop", "hold", "retreat"],
     },
     {
         id: "shoot03",
         type: "range",
-        health: 200,
+        maxHealth: 200,
         weight: 1.5,
-        xSpeed: 3,
+        xSpeed: 7,
         ySpeed: 4,
         width: 50,
         height: 50,
         image: null,
         point: 100,
+        track: true,
+        bulletSpeed: 7,
+        shotDelay: 9,
+        damage: 100,
+        bulletTypes: ["normal", "bounce"],
+        shooting: ["straight2", "side1", "multi"],
         movement: ["loop", "hold", "retreat", "semiMirror"],
     },
     {
         id: "shoot04",
         type: "range",
-        health: 500,
+        maxHealth: 500,
         weight: 1,
-        xSpeed: 3,
+        xSpeed: 9,
         ySpeed: 4,
         width: 50,
         height: 50,
         image: null,
         point: 150,
+        track: true,
+        bulletSpeed: 8,
+        shotDelay: 5,
+        damage: 200,
+        bulletTypes: ["normal", "bounce"],
+        shooting: ["straight2", "side2", "multi"],
+        movement: ["loop", "hold", "trueMirror"],
+    },
+    {
+        id: "snipe01",
+        type: "range",
+        maxHealth: 20,
+        weight: 3.5,
+        xSpeed: 3,
+        ySpeed: 4,
+        width: 50,
+        height: 50,
+        image: null,
+        point: 15,
+        track: true,
+        bulletSpeed: 7,
+        shotDelay: 25,
+        damage: 30,
+        bulletTypes: ["normal", "bounce", "homing"],
+        shooting: ["straight1"],
+        movement: ["loop", "hold", "retreat"],
+    },
+    {
+        id: "snipe02",
+        type: "range",
+        maxHealth: 50,
+        weight: 2,
+        xSpeed: 5,
+        ySpeed: 4,
+        width: 50,
+        height: 50,
+        image: null,
+        point: 40,
+        track: true,
+        bulletSpeed: 8.5,
+        shotDelay: 35,
+        damage: 70,
+        bulletTypes: ["normal", "bounce", "homing"],
+        shooting: ["side1"],
+        movement: ["loop", "hold", "retreat"],
+    },
+    {
+        id: "snipe03",
+        type: "range",
+        maxHealth: 200,
+        weight: 1.5,
+        xSpeed: 7,
+        ySpeed: 4,
+        width: 50,
+        height: 50,
+        image: null,
+        point: 100,
+        track: true,
+        bulletSpeed: 10,
+        shotDelay: 45,
+        damage: 300,
+        bulletTypes: ["normal", "bounce"],
+        shooting: ["straight1", "side2", "multi"],
+        movement: ["loop", "hold", "retreat", "semiMirror"],
+    },
+    {
+        id: "snipe04",
+        type: "range",
+        maxHealth: 500,
+        weight: 1,
+        xSpeed: 9,
+        ySpeed: 4,
+        width: 50,
+        height: 50,
+        image: null,
+        point: 150,
+        track: true,
+        bulletSpeed: 11,
+        shotDelay: 60,
+        damage: 1000,
+        bulletTypes: ["normal", "bounce"],
+        shooting: ["straight2", "side2", "multi"],
         movement: ["loop", "hold", "trueMirror"],
     },
 ];
@@ -290,6 +427,7 @@ function process() {
         playerFunctions();
         waveSpawn();
         collision();
+        projectileUpdate();
     }
 }
 
@@ -311,10 +449,15 @@ function playerFunctions() {
             shootingCounter = 0;
         } else shootingCounter++;
     }
+    if (trueTimeCounter - playerLastHit >= playerInvincibleDuration) playerInvincible = false;
     for (let i = 0; i < playerProjectiles.length; i++) {
         playerProjectiles[i].y -= projectileSpeed;
     }
     playerProjectiles = playerProjectiles.filter((bullet) => bullet.y >= -50);
+    if (playerHealth <= 0) {
+        endTime = Date.now();
+        playing = false;
+    }
 }
 
 function waveSpawn() {
@@ -328,7 +471,7 @@ function waveSpawn() {
     }
     if (hpCount <= currentWaveTotalHealth * 0.5 || waveSpawnCounter >= waveSpawnDelay) {
         currentWave++;
-        currentWaveTotalHealth = 20 + 20 * Math.pow(currentWave, 1.1);
+        currentWaveTotalHealth = Math.floor(20 + 20 * Math.pow(currentWave, 1.1));
         let temp = currentWaveTotalHealth;
         while (temp > 0) {
             let enemy = selectEnemy(temp);
@@ -344,7 +487,8 @@ function waveSpawn() {
     } else enemySpawnCounter++;
     for (let i = 0; i < enemies.length; i++) {
         let enemy = enemies[i];
-        enemyMovement(enemy, trueTimeCounter);
+        enemyMovement(enemy);
+        enemyBehavior(enemy);
     }
     enemies = enemies.filter((enemy) => enemy.y <= canvas.height - enemy.height);
 }
@@ -352,42 +496,89 @@ function waveSpawn() {
 function selectEnemy(totalHealth) {
     let sumWeight = 0,
         flag = 0;
-    for (let i = 0; i < enemyTypes.length; i++) sumWeight += enemyTypes[i].weight;
-    while (true) {
+    let availableEnemyTypes = [];
+    for (let i = 0; i < enemyTypes.length; i++) {
+        if (enemyTypes[i].maxHealth <= totalHealth) {
+            availableEnemyTypes.push({ ...enemyTypes[i] });
+            sumWeight += enemyTypes[i].weight;
+        }
+    }
+    a = 0;
+    while (a < 100) {
         let number = sumWeight * Math.random();
         let select = 0;
-        for (let i = 0; i < enemyTypes.length; i++) {
-            select += enemyTypes[i].weight;
+        for (let i = 0; i < availableEnemyTypes.length; i++) {
+            select += availableEnemyTypes[i].weight;
             if (number < select) {
-                if (enemyTypes[i].health <= totalHealth) return { ...enemyTypes[i] };
-                else {
-                    flag++;
-                    break;
-                }
+                return { ...availableEnemyTypes[i] };
             }
         }
         if (flag == 3) break;
+        a++;
     }
     return null;
 }
 
 function createEnemy(enemy) {
     let newEnemy = {
+        type: enemy.type,
         x: Math.random() * (canvas.width - enemy.width),
         y: 0,
         ySpeed: Math.random() * enemy.ySpeed,
         isInvincible: false,
         invincibleDuration: 5,
         lastHitTime: 0,
-        visible: true,
         image: enemy.image,
         movement: enemy.movement[Math.floor(Math.random() * enemy.movement.length)],
         wave: currentWave,
-        health: enemy.health,
+        maxHealth: enemy.maxHealth,
+        health: enemy.maxHealth,
         width: enemy.width,
         height: enemy.height,
         point: enemy.point,
     };
+    if (enemy.type == "range") {
+        newEnemy.track = enemy.track;
+        newEnemy.shotDelay = enemy.shotDelay;
+        newEnemy.lastShot = 0;
+        newEnemy.bulletSpeed = enemy.bulletSpeed;
+        newEnemy.damage = enemy.damage;
+        newEnemy.multishot = 1;
+        newEnemy.bulletType = enemy.bulletTypes[Math.floor(Math.random() * enemy.bulletTypes.length)];
+        for (let i = 0; i < enemy.shooting.length; i++) {
+            let dice = Math.floor(Math.random() * 101);
+            switch (enemy.shooting[i]) {
+                case "straight1":
+                    if (dice <= 60) newEnemy.straightProjectiles = 1;
+                    else if (dice <= 95) newEnemy.straightProjectiles = 2;
+                    else newEnemy.straightProjectiles = 3;
+                    break;
+                case "straight2":
+                    if (dice <= 50) newEnemy.straightProjectiles = 2;
+                    else if (dice <= 75) newEnemy.straightProjectiles = 3;
+                    else if (dice <= 95) newEnemy.straightProjectiles = 4;
+                    else newEnemy.straightProjectiles = 5;
+                    break;
+                case "side1":
+                    if (dice <= 60) newEnemy.sideProjectiles = 1;
+                    else if (dice <= 95) newEnemy.sideProjectiles = 2;
+                    else newEnemy.sideProjectiles = 3;
+                    break;
+                case "side2":
+                    if (dice <= 50) newEnemy.sideProjectiles = 2;
+                    else if (dice <= 75) newEnemy.sideProjectiles = 3;
+                    else if (dice <= 95) newEnemy.sideProjectiles = 4;
+                    else newEnemy.sideProjectiles = 5;
+                    break;
+                case "multi":
+                    if (dice <= 40) newEnemy.multishot = 2;
+                    else if (dice <= 70) newEnemy.multishot = 3;
+                    else if (dice <= 95) newEnemy.multishot = 4;
+                    else newEnemy.multishot = 5;
+                    break;
+            }
+        }
+    } else newEnemy.damage = enemy.maxHealth;
     switch (newEnemy.movement) {
         case "sine":
             newEnemy.baseX = newEnemy.x;
@@ -429,7 +620,6 @@ function createEnemy(enemy) {
             newEnemy.spreadCount = count;
             newEnemy.spreaded = false;
             break;
-        case "lowSpread":
         case "loop":
             if (enemy.type == "melee") newEnemy.yLimit = (Math.random() + 1) * canvas.height * 0.4;
             else newEnemy.yLimit = Math.random() * canvas.height * 0.3;
@@ -503,6 +693,47 @@ function createEnemy(enemy) {
             newEnemy.yLimit = Math.random() * canvas.height * 0.4;
             break;
     }
+    newEnemy.abilities = [];
+    let number = parseInt(enemy.type.at(-1));
+    let availableAbilities = [];
+    for (let i = 0; i < abilities.length; i++) {
+        if (abilities[i].compatible <= number) availableAbilities.push({ ...abilities[i] });
+    }
+    let chance = 32;
+    while (Math.floor(Math.random() * 101) <= chance) {
+        if (newEnemy.abilities.length == availableAbilities.length) break;
+        while (true) {
+            let temporaryAbility = Math.floor(Math.random() * availableAbilities.length);
+            if (newEnemy.abilities.indexOf(temporaryAbility) == -1) {
+                newEnemy.abilities.push(temporaryAbility);
+                break;
+            }
+        }
+        chance /= 2;
+    }
+    for (let i = 0; i < newEnemy.abilities.length; i++) {
+        switch (newEnemy.abilities[i].name) {
+            case "shield":
+                newEnemy.shield = 3;
+                break;
+            case "heal":
+                newEnemy.lastHeal = 0;
+                newEnemy.healDelay = Math.floor(Math.random * 300 + 300);
+                newEnemy.heal = Math.floor(Math.random() * 10 + 10);
+                break;
+            case "revive":
+                newEnemy.revived = false;
+                break;
+            case "berserk":
+                newEnemy.berserk = false;
+                newEnemy.hpThreshold = Math.floor(Math.random() * 20 + 10);
+                break;
+            case "preserve":
+                newEnemy.preserved = false;
+                newEnemy.hpThreshold = Math.floor(Math.random() * 20 + 30);
+                break;
+        }
+    }
     return newEnemy;
 }
 
@@ -520,7 +751,8 @@ function enemyMovement(enemy) {
         case "bounce":
             enemy.y += enemy.ySpeed;
             enemy.x += enemy.xSpeed;
-            if (enemy.x + enemy.xSpeed >= canvas.width - enemy.width || enemy.x + enemy.xSpeed < 0) enemy.xSpeed = -enemy.xSpeed;
+            if (enemy.x + enemy.xSpeed >= canvas.width - enemy.width || enemy.x + enemy.xSpeed < 0)
+                enemy.xSpeed = -enemy.xSpeed;
             break;
         case "hold":
             if (enemy.y < enemy.yLimit) enemy.y += enemy.ySpeed;
@@ -551,7 +783,10 @@ function enemyMovement(enemy) {
                 for (let i = 0; i < Math.floor(enemy.spreadCount / 2); i++) {
                     let newEnemyRight = { ...enemy },
                         newEnemyLeft = { ...enemy };
-                    newEnemyRight.x = Math.min(enemy.x + enemy.width + additional, canvas.width - enemy.width);
+                    newEnemyRight.x = Math.min(
+                        enemy.x + enemy.width + additional,
+                        canvas.width - enemy.width
+                    );
                     newEnemyLeft.x = Math.max(enemy.x - enemy.width - additional, 0);
                     temporaryEnemies.push(newEnemyRight);
                     temporaryEnemies.push(newEnemyLeft);
@@ -569,7 +804,10 @@ function enemyMovement(enemy) {
                         newEnemyLeft = { ...enemy };
                     newEnemyLeft.speed += Math.random();
                     newEnemyRight.speed += Math.random();
-                    newEnemyRight.x = Math.min(enemy.x + enemy.width + additional, canvas.width - enemy.width);
+                    newEnemyRight.x = Math.min(
+                        enemy.x + enemy.width + additional,
+                        canvas.width - enemy.width
+                    );
                     newEnemyLeft.x = Math.max(enemy.x - enemy.width - additional, 0);
                     temporaryEnemies.push(newEnemyRight);
                     temporaryEnemies.push(newEnemyLeft);
@@ -591,7 +829,8 @@ function enemyMovement(enemy) {
             }
             if (enemy.increased) {
                 enemy.x += enemy.xSpeed;
-                if (enemy.x + enemy.xSpeed >= canvas.width - enemy.width || enemy.x + enemy.xSpeed < 0) enemy.xSpeed = -enemy.xSpeed;
+                if (enemy.x + enemy.xSpeed >= canvas.width - enemy.width || enemy.x + enemy.xSpeed < 0)
+                    enemy.xSpeed = -enemy.xSpeed;
             }
             break;
         case "accel":
@@ -701,8 +940,10 @@ function enemyMovement(enemy) {
                 enemy.x += enemy.xSpeed;
             }
             if (enemy.charged && trueTimeCounter - enemy.lastCall >= 200) enemy.y = 10000;
-            if (enemy.y + enemy.height + enemy.ySpeed >= canvas.height || enemy.y + enemy.ySpeed <= 0) enemy.ySpeed = -enemy.ySpeed;
-            if (enemy.x + enemy.width + enemy.xSpeed >= canvas.width || enemy.x + enemy.xSpeed <= 0) enemy.xSpeed = -enemy.xSpeed;
+            if (enemy.y + enemy.height + enemy.ySpeed >= canvas.height || enemy.y + enemy.ySpeed <= 0)
+                enemy.ySpeed = -enemy.ySpeed;
+            if (enemy.x + enemy.width + enemy.xSpeed >= canvas.width || enemy.x + enemy.xSpeed <= 0)
+                enemy.xSpeed = -enemy.xSpeed;
             break;
         case "retreat":
             if (enemy.y < enemy.yLimit && !enemy.retreated) enemy.y += enemy.ySpeed;
@@ -725,6 +966,152 @@ function enemyMovement(enemy) {
     }
 }
 
+function enemyBehavior(enemy) {
+    if (enemy.type == "range") {
+        if (trueTimeCounter - enemy.lastShot >= enemy.shotDelay) {
+            let projectileImage = null;
+            switch (enemy.bulletType) {
+                case "normal":
+                    projectileImage = normalBullet;
+                    break;
+                case "bounce":
+                    projectileImage = bounceBullet;
+                    break;
+                case "homing":
+                    projectileImage = homingBullet;
+                    break;
+            }
+            if (enemy.track) {
+                let dx = playerX - enemy.x;
+                let dy = playerY - enemy.y;
+                let angle = Math.atan2(dy, dx);
+                enemy.xSpeed = Math.cos(angle) * enemy.bulletSpeed;
+                enemy.ySpeed = Math.sin(angle) * enemy.bulletSpeed;
+                for (let i = 0; i < enemy.multishot; i++) {
+                    for (let j = 0; j < enemy.straightProjectiles; j++) {
+                        enemyProjectiles.push({
+                            x: enemy.x + enemy.width / 2,
+                            y: enemy.y + enemy.height,
+                            xSpeed: Math.cos(angle) * enemy.bulletSpeed,
+                            ySpeed: Math.sin(angle) * enemy.bulletSpeed,
+                            width: 10,
+                            height: 10,
+                            health: 1,
+                            image: projectileImage,
+                            damage: enemy.damage,
+                        });
+                    }
+                    for (let j = 0; j < enemy.sideProjectiles; j++) {
+                        enemyProjectiles.push({
+                            x: enemy.x + enemy.width,
+                            y: enemy.y + enemy.height / 2,
+                            xSpeed: Math.cos(angle - Math.PI / 2) * enemy.bulletSpeed,
+                            ySpeed: Math.sin(angle - Math.PI / 2) * enemy.bulletSpeed,
+                            width: 10,
+                            height: 10,
+                            health: 1,
+                            image: projectileImage,
+                            damage: enemy.damage,
+                        });
+                        enemyProjectiles.push({
+                            x: enemy.x,
+                            y: enemy.y + enemy.height / 2,
+                            xSpeed: Math.cos(angle + Math.PI / 2) * enemy.bulletSpeed,
+                            ySpeed: Math.sin(angle + Math.PI / 2) * enemy.bulletSpeed,
+                            width: 10,
+                            height: 10,
+                            health: 1,
+                            image: projectileImage,
+                            damage: enemy.damage,
+                        });
+                    }
+                }
+            } else {
+                for (let i = 0; i < enemy.multishot; i++) {
+                    for (let j = 0; j < enemy.straightProjectiles; j++) {
+                        enemyProjectiles.push({
+                            x: enemy.x + enemy.width / 2,
+                            y: enemy.y + enemy.height,
+                            xSpeed: 0,
+                            ySpeed: enemy.bulletSpeed,
+                            width: 10,
+                            height: 10,
+                            health: 1,
+                            image: projectileImage,
+                            damage: enemy.damage,
+                        });
+                    }
+                    for (let j = 0; j < enemy.sideProjectiles; j++) {
+                        enemyProjectiles.push({
+                            x: enemy.x + enemy.width,
+                            y: enemy.y + enemy.height / 2,
+                            xSpeed: enemy.bulletSpeed / 2,
+                            ySpeed: enemy.bulletSpeed / 2,
+                            width: 10,
+                            height: 10,
+                            health: 1,
+                            image: projectileImage,
+                            damage: enemy.damage,
+                        });
+                        enemyProjectiles.push({
+                            x: enemy.x,
+                            y: enemy.y + enemy.height / 2,
+                            xSpeed: enemy.bulletSpeed / 2,
+                            ySpeed: enemy.bulletSpeed / 2,
+                            width: 10,
+                            height: 10,
+                            health: 1,
+                            image: projectileImage,
+                            damage: enemy.damage,
+                        });
+                    }
+                }
+            }
+            enemy.lastShot = trueTimeCounter;
+        }
+    }
+    for (let i = 0; i < enemy.abilities.length; i++) {
+        if (enemy.abilities[i] == "heal") {
+            if (trueTimeCounter - enemy.lastHeal >= enemy.healDelay) {
+                enemy.health = Math.min(enemy.maxHealth, enemy.health + (enemy.heal * enemy.maxHealth) / 100);
+                enemy.lastHeal = trueTimeCounter;
+            }
+        }
+    }
+}
+
+function projectileUpdate() {
+    for (let i = 0; i < enemyProjectiles.length; i++) {
+        let bullet = enemyProjectiles[i];
+        if (bullet.health <= 0) continue;
+        bullet.x += bullet.xSpeed;
+        bullet.y += bullet.ySpeed;
+        if (
+            bullet.x + bullet.width >= playerX + 17 &&
+            bullet.x <= playerX + 47 &&
+            bullet.y + bullet.height >= playerY + 34 &&
+            bullet.y <= playerY + 64
+        ) {
+            if (!playerInvincible) {
+                playerHealth -= bullet.damage;
+                playerInvincible = true;
+                playerLastHit = trueTimeCounter;
+                bullet.health--;
+            } else {
+                bullet.health--;
+            }
+        }
+    }
+    enemyProjectiles = enemyProjectiles.filter(
+        (bullet) =>
+            bullet.health > 0 &&
+            bullet.y >= -20 &&
+            bullet.y <= canvas.height + 20 &&
+            bullet.x >= -20 &&
+            bullet.x <= canvas.width + 20
+    );
+}
+
 function collision() {
     for (let i = 0; i < playerProjectiles.length; i++) {
         let bullet = playerProjectiles[i];
@@ -739,10 +1126,27 @@ function collision() {
                 bullet.y <= enemy.y + enemy.height &&
                 !enemy.isInvincible
             ) {
-                enemy.health -= bullet.damage;
+                if (enemy.shield !== 0) enemy.shield--;
+                else enemy.health -= bullet.damage;
                 enemy.isInvincible = true;
                 enemy.lastHitTime = trueTimeCounter;
                 bullet.health--;
+            }
+            if (enemy.health <= 0 && enemy.revived == false) {
+                enemy.health = enemy.maxHealth;
+                enemy.revived = true;
+                temporaryEnemies.push({ ...enemy });
+                enemy.health = 0;
+            }
+            if (enemy.health > 0 && enemy.health <= enemy.maxHealth * enemy.hpThreshold) {
+                if (enemy.berserk == false) {
+                    enemy.damage = Math.floor(enemy.damage * 1.5);
+                    enemy.berserk = true;
+                }
+                if (enemy.preserved == false) {
+                    enemy.health = enemy.maxHealth;
+                    enemy.preserved = true;
+                }
             }
         }
     }
@@ -761,22 +1165,30 @@ function collision() {
             }
             score += enemies[i].point * Math.round((currentMultiplier * 10) / 10);
             if (streak <= 1) currentMultiplier = 1;
-            else currentMultiplier = Math.round((Math.min(50, 1 + Math.exp((Math.log(49) / 24) * (streak - 1))) * 10) / 10);
+            else
+                currentMultiplier = Math.round(
+                    (Math.min(50, 1 + Math.exp((Math.log(49) / 24) * (streak - 1))) * 10) / 10
+                );
         }
     }
     playerProjectiles = playerProjectiles.filter((bullet) => bullet.health > 0);
     enemies = enemies.filter((enemy) => enemy.health > 0);
     for (let i = 0; i < enemies.length; i++) {
         let enemy = enemies[i];
-        if (enemy.x + enemy.width >= playerX + 17 && enemy.x <= playerX + 47 && enemy.y + enemy.height >= playerY + 34 && enemy.y <= playerY + 64) {
-            endTime = Date.now();
-            playing = false;
+        if (
+            enemy.x + enemy.width >= playerX + 17 &&
+            enemy.x <= playerX + 47 &&
+            enemy.y + enemy.height >= playerY + 34 &&
+            enemy.y <= playerY + 64 &&
+            !playerInvincible
+        ) {
+            playerHealth -= enemy.damage;
+            enemy.health = 0;
+            playerInvincible = true;
+            playerLastHit = trueTimeCounter;
         }
         if (trueTimeCounter - enemy.lastHitTime >= enemy.invincibleDuration) {
             enemy.isInvincible = false;
-            enemy.visible = true;
-        } else {
-            enemy.visible = false;
         }
     }
 }
@@ -837,7 +1249,9 @@ function draw() {
     ctx.strokeStyle = "rgb(255 0 0)";
     ctx.save();
 
+    if (playerInvincible) ctx.globalAlpha = 0.5;
     ctx.drawImage(playerShip, playerX, playerY, 64, 64);
+    ctx.globalAlpha = 1.0;
     ctx.beginPath();
     ctx.rect(playerX + 17, playerY + 34, 30, 30);
     ctx.stroke();
@@ -849,9 +1263,14 @@ function draw() {
 
     for (let i = 0; i < enemies.length; i++) {
         let enemy = enemies[i];
-        if (!enemy.visible) ctx.globalAlpha = 0.5;
+        if (enemy.isInvincible) ctx.globalAlpha = 0.5;
         ctx.drawImage(enemy.image, enemy.x, enemy.y, enemy.width, enemy.height);
         ctx.globalAlpha = 1.0;
+    }
+
+    for (let i = 0; i < enemyProjectiles.length; i++) {
+        let bullet = enemyProjectiles[i];
+        ctx.drawImage(bullet.image, bullet.x, bullet.y, bullet.width, bullet.height);
     }
 
     ctx.fillStyle = "white";
@@ -903,7 +1322,11 @@ function endScreen() {
         let elapsedTime = (endTime - startTime - totalPausedTime) / 1000;
         let timeScore = Math.floor(elapsedTime * 5);
         ctx.fillStyle = `rgb(0 255 0)`;
-        ctx.fillText("You survived for: " + `${elapsedTime.toFixed(2)}` + " seconds", canvas.width / 2, canvas.height / 2 + 80);
+        ctx.fillText(
+            "You survived for: " + `${elapsedTime.toFixed(2)}` + " seconds",
+            canvas.width / 2,
+            canvas.height / 2 + 80
+        );
         ctx.fillStyle = `rgb(0 0 255)`;
         ctx.fillText("Game score: " + score, canvas.width / 2, canvas.height / 2 + 130);
         ctx.fillText("Time score: " + timeScore, canvas.width / 2, canvas.height / 2 + 180);
