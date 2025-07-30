@@ -63,9 +63,9 @@ function initImages() {
     enemyTypes[13].image = loadImage("images/enemy/sniper02.png");
     enemyTypes[14].image = loadImage("images/enemy/sniper03.png");
     enemyTypes[15].image = loadImage("images/enemy/sniper04.png");
-    normalBullet = loadImage("images/player/bullet01.png");
-    homingBullet = loadImage("images/player/bullet01.png");
-    bounceBullet = loadImage("images/player/bullet01.png");
+    normalBullet = loadImage("images/enemy/normalBullet.png");
+    homingBullet = loadImage("images/enemy/homingBullet.png");
+    bounceBullet = loadImage("images/enemy/bounceBullet.png");
     playerShip = loadImage("images/player/player01.png");
     playerBullet = loadImage("images/player/bullet01.png");
 }
@@ -150,16 +150,16 @@ const abilities = [
         compatible: 1,
     },
     {
+        name: "preserve",
+        compatible: 3,
+    },
+    {
         name: "revive",
-        compatible: 2,
+        compatible: 3,
     },
     {
         name: "heal",
-        compatible: 3,
-    },
-    {
-        name: "preserve",
-        compatible: 3,
+        compatible: 2,
     },
 ];
 const enemyTypes = [
@@ -279,8 +279,8 @@ const enemyTypes = [
         image: null,
         point: 15,
         track: false,
-        bulletSpeed: 4,
-        shotDelay: 15,
+        bulletSpeed: 3,
+        shotDelay: 80,
         damage: 10,
         bulletTypes: ["normal"],
         shooting: ["straight1"],
@@ -298,8 +298,8 @@ const enemyTypes = [
         image: null,
         point: 40,
         track: false,
-        bulletSpeed: 6,
-        shotDelay: 12,
+        bulletSpeed: 3.5,
+        shotDelay: 60,
         damage: 30,
         bulletTypes: ["normal", "homing"],
         shooting: ["side1"],
@@ -316,9 +316,9 @@ const enemyTypes = [
         height: 50,
         image: null,
         point: 100,
-        track: true,
-        bulletSpeed: 7,
-        shotDelay: 9,
+        track: false,
+        bulletSpeed: 4,
+        shotDelay: 40,
         damage: 100,
         bulletTypes: ["normal", "bounce"],
         shooting: ["straight2", "side1", "multi"],
@@ -335,9 +335,9 @@ const enemyTypes = [
         height: 50,
         image: null,
         point: 150,
-        track: true,
-        bulletSpeed: 8,
-        shotDelay: 5,
+        track: false,
+        bulletSpeed: 4.5,
+        shotDelay: 30,
         damage: 200,
         bulletTypes: ["normal", "bounce"],
         shooting: ["straight2", "side2", "multi"],
@@ -355,8 +355,8 @@ const enemyTypes = [
         image: null,
         point: 15,
         track: true,
-        bulletSpeed: 7,
-        shotDelay: 25,
+        bulletSpeed: 5,
+        shotDelay: 150,
         damage: 30,
         bulletTypes: ["normal", "bounce", "homing"],
         shooting: ["straight1"],
@@ -374,8 +374,8 @@ const enemyTypes = [
         image: null,
         point: 40,
         track: true,
-        bulletSpeed: 8.5,
-        shotDelay: 35,
+        bulletSpeed: 5.5,
+        shotDelay: 120,
         damage: 70,
         bulletTypes: ["normal", "bounce", "homing"],
         shooting: ["side1"],
@@ -393,8 +393,8 @@ const enemyTypes = [
         image: null,
         point: 100,
         track: true,
-        bulletSpeed: 10,
-        shotDelay: 45,
+        bulletSpeed: 6,
+        shotDelay: 70,
         damage: 300,
         bulletTypes: ["normal", "bounce"],
         shooting: ["straight1", "side2", "multi"],
@@ -412,7 +412,7 @@ const enemyTypes = [
         image: null,
         point: 150,
         track: true,
-        bulletSpeed: 11,
+        bulletSpeed: 7,
         shotDelay: 60,
         damage: 1000,
         bulletTypes: ["normal", "bounce"],
@@ -694,7 +694,8 @@ function createEnemy(enemy) {
             break;
     }
     newEnemy.abilities = [];
-    let number = parseInt(enemy.type.at(-1));
+    let numberString = enemy.id.at(enemy.id.length - 1);
+    let number = parseInt(numberString);
     let availableAbilities = [];
     for (let i = 0; i < abilities.length; i++) {
         if (abilities[i].compatible <= number) availableAbilities.push({ ...abilities[i] });
@@ -703,13 +704,13 @@ function createEnemy(enemy) {
     while (Math.floor(Math.random() * 101) <= chance) {
         if (newEnemy.abilities.length == availableAbilities.length) break;
         while (true) {
-            let temporaryAbility = Math.floor(Math.random() * availableAbilities.length);
+            let temporaryAbility = availableAbilities[Math.floor(Math.random() * availableAbilities.length)];
             if (newEnemy.abilities.indexOf(temporaryAbility) == -1) {
                 newEnemy.abilities.push(temporaryAbility);
                 break;
             }
         }
-        chance /= 2;
+        chance = -1;
     }
     for (let i = 0; i < newEnemy.abilities.length; i++) {
         switch (newEnemy.abilities[i].name) {
@@ -718,8 +719,8 @@ function createEnemy(enemy) {
                 break;
             case "heal":
                 newEnemy.lastHeal = 0;
-                newEnemy.healDelay = Math.floor(Math.random * 300 + 300);
-                newEnemy.heal = Math.floor(Math.random() * 10 + 10);
+                newEnemy.healDelay = Math.floor(Math.random() * 300 + 300);
+                newEnemy.heal = Math.floor(Math.random() * 10 + 20);
                 break;
             case "revive":
                 newEnemy.revived = false;
@@ -985,85 +986,100 @@ function enemyBehavior(enemy) {
                 let dx = playerX - enemy.x;
                 let dy = playerY - enemy.y;
                 let angle = Math.atan2(dy, dx);
-                enemy.xSpeed = Math.cos(angle) * enemy.bulletSpeed;
-                enemy.ySpeed = Math.sin(angle) * enemy.bulletSpeed;
                 for (let i = 0; i < enemy.multishot; i++) {
                     for (let j = 0; j < enemy.straightProjectiles; j++) {
-                        enemyProjectiles.push({
-                            x: enemy.x + enemy.width / 2,
+                        let tempBullet = {
+                            x: enemy.x + enemy.width / 2 - 10 * Math.pow(-1, j),
                             y: enemy.y + enemy.height,
                             xSpeed: Math.cos(angle) * enemy.bulletSpeed,
                             ySpeed: Math.sin(angle) * enemy.bulletSpeed,
+                            bulletType: enemy.bulletType,
                             width: 10,
                             height: 10,
                             health: 1,
                             image: projectileImage,
                             damage: enemy.damage,
-                        });
+                        };
+                        if (enemy.bulletType == "bounce")
+                            tempBullet.bounceCount = Math.floor(Math.random() * 3 + 1);
+                        else if (enemy.bulletType == "homing") {
+                            tempBullet.speed = enemy.bulletSpeed;
+                            tempBullet.homingStrength = 0.01;
+                        }
+                        enemyProjectiles.push(tempBullet);
                     }
                     for (let j = 0; j < enemy.sideProjectiles; j++) {
-                        enemyProjectiles.push({
-                            x: enemy.x + enemy.width,
-                            y: enemy.y + enemy.height / 2,
-                            xSpeed: Math.cos(angle - Math.PI / 2) * enemy.bulletSpeed,
-                            ySpeed: Math.sin(angle - Math.PI / 2) * enemy.bulletSpeed,
-                            width: 10,
-                            height: 10,
-                            health: 1,
-                            image: projectileImage,
-                            damage: enemy.damage,
-                        });
-                        enemyProjectiles.push({
+                        let tempBullet = {
                             x: enemy.x,
-                            y: enemy.y + enemy.height / 2,
-                            xSpeed: Math.cos(angle + Math.PI / 2) * enemy.bulletSpeed,
-                            ySpeed: Math.sin(angle + Math.PI / 2) * enemy.bulletSpeed,
+                            y: enemy.y + enemy.height / 2 - 10 * Math.pow(-1, j),
+                            xSpeed: Math.cos(angle - Math.PI / 4) * enemy.bulletSpeed,
+                            ySpeed: Math.sin(angle - Math.PI / 4) * enemy.bulletSpeed,
+                            bulletType: enemy.bulletType,
                             width: 10,
                             height: 10,
                             health: 1,
                             image: projectileImage,
                             damage: enemy.damage,
-                        });
+                        };
+                        if (enemy.bulletType == "bounce")
+                            tempBullet.bounceCount = Math.floor(Math.random() * 3 + 1);
+                        else if (enemy.bulletType == "homing") {
+                            tempBullet.speed = enemy.bulletSpeed;
+                            tempBullet.homingStrength = 0.01;
+                        }
+                        enemyProjectiles.push({ ...tempBullet });
+                        tempBullet.x = enemy.x + enemy.width;
+                        tempBullet.xSpeed = Math.cos(angle + Math.PI / 4) * enemy.bulletSpeed;
+                        tempBullet.ySpeed = Math.sin(angle + Math.PI / 4) * enemy.bulletSpeed;
+                        enemyProjectiles.push({ ...tempBullet });
                     }
                 }
             } else {
                 for (let i = 0; i < enemy.multishot; i++) {
                     for (let j = 0; j < enemy.straightProjectiles; j++) {
-                        enemyProjectiles.push({
-                            x: enemy.x + enemy.width / 2,
+                        let tempBullet = {
+                            x: enemy.x + enemy.width / 2 - 10 * Math.pow(-1, j),
                             y: enemy.y + enemy.height,
                             xSpeed: 0,
                             ySpeed: enemy.bulletSpeed,
+                            bulletType: enemy.bulletType,
                             width: 10,
                             height: 10,
                             health: 1,
                             image: projectileImage,
                             damage: enemy.damage,
-                        });
+                        };
+                        if (enemy.bulletType == "bounce")
+                            tempBullet.bounceCount = Math.floor(Math.random() * 3 + 1);
+                        else if (enemy.bulletType == "homing") {
+                            tempBullet.speed = enemy.bulletSpeed;
+                            tempBullet.homingStrength = 0.01;
+                        }
+                        enemyProjectiles.push(tempBullet);
                     }
                     for (let j = 0; j < enemy.sideProjectiles; j++) {
-                        enemyProjectiles.push({
+                        let tempBullet = {
                             x: enemy.x + enemy.width,
-                            y: enemy.y + enemy.height / 2,
+                            y: enemy.y + enemy.height / 2 - 10 * Math.pow(-1, j),
                             xSpeed: enemy.bulletSpeed / 2,
                             ySpeed: enemy.bulletSpeed / 2,
+                            bulletType: enemy.bulletType,
                             width: 10,
                             height: 10,
                             health: 1,
                             image: projectileImage,
                             damage: enemy.damage,
-                        });
-                        enemyProjectiles.push({
-                            x: enemy.x,
-                            y: enemy.y + enemy.height / 2,
-                            xSpeed: enemy.bulletSpeed / 2,
-                            ySpeed: enemy.bulletSpeed / 2,
-                            width: 10,
-                            height: 10,
-                            health: 1,
-                            image: projectileImage,
-                            damage: enemy.damage,
-                        });
+                        };
+                        if (enemy.bulletType == "bounce")
+                            tempBullet.bounceCount = Math.floor(Math.random() * 3 + 1);
+                        else if (enemy.bulletType == "homing") {
+                            tempBullet.speed = enemy.bulletSpeed;
+                            tempBullet.homingStrength = 0.01;
+                        }
+                        enemyProjectiles.push({ ...tempBullet });
+                        tempBullet.y = enemy.y + enemy.height / 2 - 10 * Math.pow(-1, j);
+                        tempBullet.xSpeed = -enemy.bulletSpeed / 2;
+                        (tempBullet.ySpeed = enemy.bulletSpeed / 2), enemyProjectiles.push({ ...tempBullet });
                     }
                 }
             }
@@ -1071,9 +1087,12 @@ function enemyBehavior(enemy) {
         }
     }
     for (let i = 0; i < enemy.abilities.length; i++) {
-        if (enemy.abilities[i] == "heal") {
+        if (enemy.abilities[i].name == "heal") {
             if (trueTimeCounter - enemy.lastHeal >= enemy.healDelay) {
-                enemy.health = Math.min(enemy.maxHealth, enemy.health + (enemy.heal * enemy.maxHealth) / 100);
+                enemy.health = Math.min(
+                    enemy.maxHealth,
+                    Math.floor(enemy.health + (enemy.heal * enemy.maxHealth) / 100)
+                );
                 enemy.lastHeal = trueTimeCounter;
             }
         }
@@ -1084,6 +1103,23 @@ function projectileUpdate() {
     for (let i = 0; i < enemyProjectiles.length; i++) {
         let bullet = enemyProjectiles[i];
         if (bullet.health <= 0) continue;
+        if (bullet.bulletType == "bounce" || bullet.bulletType == "normal") {
+        } else {
+            if (playerY + 64 >= bullet.y) {
+                let dx = playerX + 32 - bullet.x;
+                let dy = playerY + 49 - bullet.y;
+                let dist = Math.hypot(dx, dy);
+                dx /= dist;
+                dy /= dist;
+                bullet.xSpeed =
+                    (1 - bullet.homingStrength) * bullet.xSpeed + bullet.homingStrength * dx * bullet.speed;
+                bullet.ySpeed =
+                    (1 - bullet.homingStrength) * bullet.ySpeed + bullet.homingStrength * dy * bullet.speed;
+            } else {
+                bullet.xSpeed = 0;
+                bullet.ySpeed = bullet.speed;
+            }
+        }
         bullet.x += bullet.xSpeed;
         bullet.y += bullet.ySpeed;
         if (
@@ -1099,6 +1135,17 @@ function projectileUpdate() {
                 bullet.health--;
             } else {
                 bullet.health--;
+            }
+        }
+        if (bullet.bulletType == "bounce") {
+            if (bullet.bounceCount <= 0) bullet.health = 0;
+            if (bullet.x + bullet.width + bullet.xSpeed >= canvas.width || bullet.x + bullet.xSpeed <= 0) {
+                bullet.bounceCount--;
+                bullet.xSpeed = -bullet.xSpeed;
+            }
+            if (bullet.y + bullet.height + bullet.ySpeed >= canvas.height || bullet.y + bullet.ySpeed <= 0) {
+                bullet.bounceCount--;
+                bullet.ySpeed = -bullet.ySpeed;
             }
         }
     }
@@ -1126,7 +1173,7 @@ function collision() {
                 bullet.y <= enemy.y + enemy.height &&
                 !enemy.isInvincible
             ) {
-                if (enemy.shield !== 0) enemy.shield--;
+                if (enemy.shield > 0) enemy.shield--;
                 else enemy.health -= bullet.damage;
                 enemy.isInvincible = true;
                 enemy.lastHitTime = trueTimeCounter;
@@ -1138,7 +1185,7 @@ function collision() {
                 temporaryEnemies.push({ ...enemy });
                 enemy.health = 0;
             }
-            if (enemy.health > 0 && enemy.health <= enemy.maxHealth * enemy.hpThreshold) {
+            if (enemy.health > 0 && enemy.health <= (enemy.maxHealth * enemy.hpThreshold) / 100) {
                 if (enemy.berserk == false) {
                     enemy.damage = Math.floor(enemy.damage * 1.5);
                     enemy.berserk = true;
@@ -1207,7 +1254,7 @@ function restartGame() {
     endTime = null;
     playerMovementSpeed = 3;
     projectileSpeed = 10;
-    projectileDamage = 30;
+    projectileDamage = 20;
     shootingCounter = 0;
     shootingCooldown = 10;
     waveSpawnCounter = 0;
@@ -1266,6 +1313,15 @@ function draw() {
         if (enemy.isInvincible) ctx.globalAlpha = 0.5;
         ctx.drawImage(enemy.image, enemy.x, enemy.y, enemy.width, enemy.height);
         ctx.globalAlpha = 1.0;
+        if (enemy.berserk == true) ctx.fillStyle = "rgb(255, 0, 0)";
+        else if (enemy.preserved == true) ctx.fillStyle = "rgb(0, 0, 125)";
+        else if (enemy.heal > 0) ctx.fillStyle = "rgb(0, 255, 0)";
+        else if (enemy.revived === true) ctx.fillStyle = "rgb(255, 255, 255)";
+        else ctx.fillStyle = "rgb(255, 215, 0)";
+        ctx.font = "bold 15px serif";
+        ctx.fillText(enemy.health + "/" + enemy.maxHealth, enemy.x + enemy.width / 8, enemy.y - 15);
+        if (enemy.shield > 0)
+            ctx.fillText("Shield: " + enemy.shield, enemy.x + enemy.width / 8, enemy.y - 30);
     }
 
     for (let i = 0; i < enemyProjectiles.length; i++) {
