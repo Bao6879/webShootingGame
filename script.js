@@ -82,14 +82,27 @@ let startTime = Date.now(),
     pauseStartTime = null,
     totalPausedTime = 0,
     endTime = null;
-let playerHealth = 100,
+let playerFrontShots = 1,
+    playerSideShots = 0,
+    playerBounceCount = 0;
+let playerWidth = 64,
+    playerHeight = 64,
+    playerMaxHealth = 100,
+    playerHealth = 100,
+    playerMaxArmor = 100,
+    playerArmor = 100,
+    playerArmorRegen = 10,
+    playerLastArmorRegen = 0,
+    playerArmorRegenDelay = 200,
     playerInvincible = false,
     playerLastHit = 0,
     playerInvincibleDuration = 10,
     playerMovementSpeed = 3,
     projectileSpeed = 10,
     projectileDamage = 20,
+    projectileHealth = 1,
     shootingCounter = 0,
+    originShootingCooldown = 20,
     shootingCooldown = 20,
     waveSpawnCounter = 0,
     waveSpawnDelay = 500,
@@ -99,20 +112,32 @@ let playerHealth = 100,
     currentWaveTotalHealth = 0,
     spawnCounter = 0,
     trueTimeCounter = 0;
+let currentUpgrades = [0, 0, 0, 0, 0, 0, 0, 0];
+let totalStacks = 0;
 let score = 0,
     totalTime = 0,
     streak = 0,
     previousKill = 0,
+    originStreakTimeReq = 300,
     streakTimeReq = 300,
     streakAlpha = 0,
     streakCounter = 0,
-    currentMultiplier = 1;
+    originMultiplier = 1,
+    currentMultiplier = 1,
+    upgradeAlpha = 0,
+    upgradeCounter = 0;
+let exp = 0,
+    expReq = 5,
+    expMultiplier = 1;
 let playerProjectiles = [],
     enemies = [],
     temporaryEnemies = [],
-    enemyProjectiles = [];
+    enemyProjectiles = [],
+    upgradesQueue = [];
 const streakDisplayTime = 300,
-    streakFadeSpeed = 0.02;
+    upgradeDisplayTime = 300,
+    streakFadeSpeed = 0.02,
+    upgradeFadeSpeed = 0.02;
 const streakNames = [
     "Double Kill",
     "Triple Kill",
@@ -139,6 +164,62 @@ const streakNames = [
     "Annhilating",
     "Godlike",
     "Ungodly",
+];
+const upgrades = [
+    {
+        name: "Damage",
+        id: "dmg",
+        maxStacks: 10,
+        weight: 3,
+        multiplier: 1.5,
+    },
+    {
+        name: "Attack Speed",
+        id: "spd",
+        maxStacks: 10,
+        weight: 3,
+    },
+    {
+        name: "Armor",
+        id: "arm",
+        maxStacks: 10,
+        weight: 3,
+        multiplier: 1.5,
+    },
+    {
+        name: "Front Shots",
+        id: "frt",
+        maxStacks: 5,
+        weight: 1,
+        multiplier: 1.1,
+    },
+    {
+        name: "Side Shots",
+        id: "sid",
+        maxStacks: 5,
+        weight: 1,
+        multiplier: 1.1,
+    },
+    {
+        name: "Bounce Count + Pierce",
+        id: "bou",
+        maxStacks: 5,
+        weight: 1,
+    },
+    {
+        name: "Score Multiplier + Streak Allowed Time",
+        id: "sco",
+        maxStacks: 5,
+        weight: 2,
+        multiplier: 1.2,
+    },
+    {
+        name: "Exp gain",
+        id: "exp",
+        maxStacks: 5,
+        weight: 2,
+        multiplier: 1.2,
+    },
 ];
 const abilities = [
     {
@@ -438,22 +519,77 @@ function playerFunctions() {
     if (sPressed && playerY <= canvas.height - playerMovementSpeed - 64) playerY += playerMovementSpeed;
     if (shooting) {
         if (shootingCounter >= shootingCooldown) {
-            playerProjectiles.push({
-                x: playerX + 20,
-                y: playerY,
-                width: 10,
-                height: 10,
-                health: 1,
-                damage: projectileDamage,
-            });
+            for (let i = 0; i < playerFrontShots; i++) {
+                playerProjectiles.push({
+                    x: playerX + playerWidth / 2 + Math.pow(-1, i) * 10,
+                    y: playerY,
+                    xSpeed: 0,
+                    ySpeed: -projectileSpeed,
+                    width: 10,
+                    height: 10,
+                    health: projectileHealth,
+                    damage: projectileDamage,
+                    bounceCount: playerBounceCount,
+                });
+            }
+            for (let i = 0; i < playerSideShots; i++) {
+                playerProjectiles.push({
+                    x: playerX + playerWidth,
+                    y: playerY + playerHeight / 2 + Math.pow(-1, i) * 10,
+                    xSpeed: projectileSpeed / 2,
+                    ySpeed: -projectileSpeed / 2,
+                    width: 10,
+                    height: 10,
+                    health: projectileHealth,
+                    damage: projectileDamage,
+                    bounceCount: playerBounceCount,
+                });
+                playerProjectiles.push({
+                    x: playerX,
+                    y: playerY + playerHeight / 2 + Math.pow(-1, i) * 10,
+                    xSpeed: -projectileSpeed / 2,
+                    ySpeed: -projectileSpeed / 2,
+                    width: 10,
+                    height: 10,
+                    health: projectileHealth,
+                    damage: projectileDamage,
+                    bounceCount: playerBounceCount,
+                });
+            }
             shootingCounter = 0;
         } else shootingCounter++;
     }
     if (trueTimeCounter - playerLastHit >= playerInvincibleDuration) playerInvincible = false;
-    for (let i = 0; i < playerProjectiles.length; i++) {
-        playerProjectiles[i].y -= projectileSpeed;
+    if (trueTimeCounter - playerLastArmorRegen >= playerArmorRegenDelay) {
+        playerArmor = Math.min(playerArmor + playerArmorRegen, playerMaxArmor);
+        playerLastArmorRegen = trueTimeCounter;
     }
-    playerProjectiles = playerProjectiles.filter((bullet) => bullet.y >= -50);
+    for (let i = 0; i < playerProjectiles.length; i++) {
+        let bullet = playerProjectiles[i];
+        bullet.x += bullet.xSpeed;
+        bullet.y += bullet.ySpeed;
+        if (bullet.bounceCount > 0) {
+            if (bullet.x + bullet.xSpeed + bullet.width >= canvas.width || bullet.x + bullet.xSpeed <= 0) {
+                bullet.xSpeed = -bullet.xSpeed;
+                bullet.bounceCount--;
+            }
+            if (
+                bullet.y + bullet.ySpeed + bullet.height >= canvas.height ||
+                (bullet.y + bullet.ySpeed <= 0 && bullet.bounceCount > 0)
+            ) {
+                bullet.ySpeed = -bullet.ySpeed;
+                bullet.bounceCount--;
+            }
+        }
+    }
+    playerProjectiles = playerProjectiles.filter(
+        (bullet) =>
+            bullet.health > 0 &&
+            bullet.y >= -20 &&
+            bullet.y <= canvas.height + 20 &&
+            bullet.x >= -20 &&
+            bullet.x <= canvas.width + 20
+    );
     if (playerHealth <= 0) {
         endTime = Date.now();
         playing = false;
@@ -503,8 +639,7 @@ function selectEnemy(totalHealth) {
             sumWeight += enemyTypes[i].weight;
         }
     }
-    a = 0;
-    while (a < 100) {
+    while (flag < 3) {
         let number = sumWeight * Math.random();
         let select = 0;
         for (let i = 0; i < availableEnemyTypes.length; i++) {
@@ -513,8 +648,7 @@ function selectEnemy(totalHealth) {
                 return { ...availableEnemyTypes[i] };
             }
         }
-        if (flag == 3) break;
-        a++;
+        flag++;
     }
     return null;
 }
@@ -1129,7 +1263,11 @@ function projectileUpdate() {
             bullet.y <= playerY + 64
         ) {
             if (!playerInvincible) {
-                playerHealth -= bullet.damage;
+                if (playerArmor >= bullet.damage) playerArmor -= bullet.damage;
+                else {
+                    playerHealth -= bullet.damage - playerArmor;
+                    playerArmor = 0;
+                }
                 playerInvincible = true;
                 playerLastHit = trueTimeCounter;
                 bullet.health--;
@@ -1216,6 +1354,18 @@ function collision() {
                 currentMultiplier = Math.round(
                     (Math.min(50, 1 + Math.exp((Math.log(49) / 24) * (streak - 1))) * 10) / 10
                 );
+            exp += Math.floor(enemies[i].maxHealth / 10) * expMultiplier;
+            if (exp >= expReq) {
+                while (exp >= expReq) {
+                    exp -= expReq;
+                    if (totalStacks <= 10) expReq *= 1.5;
+                    else if (totalStacks < 30) expReq *= 1.2;
+                    else expReq *= 1.1;
+                    expReq = Math.floor(expReq);
+                    totalStacks++;
+                    upgradesQueue.push(upgradePlayer());
+                }
+            }
         }
     }
     playerProjectiles = playerProjectiles.filter((bullet) => bullet.health > 0);
@@ -1229,7 +1379,11 @@ function collision() {
             enemy.y <= playerY + 64 &&
             !playerInvincible
         ) {
-            playerHealth -= enemy.damage;
+            if (playerArmor >= enemy.damage) playerArmor -= enemy.damage;
+            else {
+                playerHealth -= enemy.damage - playerArmor;
+                playerArmor = 0;
+            }
             enemy.health = 0;
             playerInvincible = true;
             playerLastHit = trueTimeCounter;
@@ -1238,6 +1392,64 @@ function collision() {
             enemy.isInvincible = false;
         }
     }
+}
+
+function upgradePlayer() {
+    let sumWeight = 0,
+        flag = 0;
+    let availableUpgrades = [];
+    for (let i = 0; i < upgrades.length; i++) {
+        if (currentUpgrades[i] < upgrades[i].maxStacks) {
+            availableUpgrades.push({ ...upgrades[i] });
+            availableUpgrades[availableUpgrades.length - 1].index = i;
+            sumWeight += upgrades[i].weight;
+        }
+    }
+    while (flag < 3) {
+        let number = sumWeight * Math.random();
+        let select = 0;
+        for (let i = 0; i < availableUpgrades.length; i++) {
+            select += availableUpgrades[i].weight;
+            if (number < select) {
+                let upgrade = { ...availableUpgrades[i] };
+                currentUpgrades[upgrade.index]++;
+                switch (upgrade.id) {
+                    case "dmg":
+                        projectileDamage = Math.floor(projectileDamage * upgrade.multiplier);
+                        break;
+                    case "spd":
+                        shootingCooldown = Math.floor(shootingCooldown - originShootingCooldown * 0.07);
+                        break;
+                    case "arm":
+                        playerArmor *= upgrade.multiplier;
+                        playerArmorRegen *= upgrade.multiplier;
+                        break;
+                    case "frt":
+                        playerFrontShots++;
+                        projectileDamage = Math.floor(projectileDamage * upgrade.multiplier);
+                        break;
+                    case "sid":
+                        playerSideShots++;
+                        projectileDamage = Math.floor(projectileDamage * upgrade.multiplier);
+                        break;
+                    case "bou":
+                        projectileHealth++;
+                        playerBounceCount++;
+                        break;
+                    case "sco":
+                        originStreakTimeReq = Math.floor(originStreakTimeReq * upgrade.multiplier);
+                        originMultiplier = Math.floor(originMultiplier * upgrade.multiplier);
+                        break;
+                    case "exp":
+                        expMultiplier = Math.floor(expMultiplier * upgrade.multiplier);
+                        break;
+                }
+                return upgrade;
+            }
+        }
+        flag++;
+    }
+    return null;
 }
 
 function restartGame() {
@@ -1292,16 +1504,55 @@ window.requestAnimationFrame(draw);
 function draw() {
     process();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "rgb(0 0 0)";
-    ctx.strokeStyle = "rgb(255 0 0)";
+    ctx.globalAlpha = 1.0;
     ctx.save();
 
+    ctx.textAlign = "center";
+    ctx.font = "15px serif";
+    ctx.fillStyle = "rgb(150, 150, 150)";
+    ctx.fillRect(0, 0, canvas.width / 3.5, 40);
+    ctx.fillStyle = "rgb(200, 0, 0)";
+    ctx.fillRect(10, 5, (canvas.width / 3.5 - 20) * (playerHealth / playerMaxHealth), 30);
+    ctx.fillStyle = "rgb(255, 255, 255)";
+    ctx.fillText(playerHealth + "/" + playerMaxHealth, canvas.width / 7, 25);
+
+    ctx.fillStyle = "rgb(150, 150, 150)";
+    ctx.fillRect((canvas.width * 3) / 4, 0, canvas.width / 3.5, 40);
+    ctx.fillStyle = "rgb(80, 80, 80)";
+    ctx.fillRect(
+        (canvas.width * 3) / 4 + 10,
+        5,
+        (canvas.width / 3.5 - 20) * (playerArmor / playerMaxArmor),
+        30
+    );
+    ctx.fillStyle = "rgb(255, 255, 255)";
+    ctx.fillText(playerArmor + "/" + playerMaxArmor, (canvas.width * 25) / 28, 25);
+
+    ctx.fillStyle = "rgb(150, 150, 150)";
+    ctx.fillRect((canvas.width * 5) / 14, 0, canvas.width / 3.5, 40);
+    ctx.fillStyle = "rgb(0, 200, 0)";
+    ctx.fillRect((canvas.width * 5) / 14 + 10, 5, (canvas.width / 3.5 - 20) * (exp / expReq), 30);
+    ctx.fillStyle = "rgb(255, 255, 255)";
+    ctx.fillText(exp + "/" + expReq, canvas.width / 2, 25);
+
+    ctx.textAlign = "left";
     if (playerInvincible) ctx.globalAlpha = 0.5;
-    ctx.drawImage(playerShip, playerX, playerY, 64, 64);
+    ctx.drawImage(playerShip, playerX, playerY, playerWidth, playerHeight);
     ctx.globalAlpha = 1.0;
     ctx.beginPath();
     ctx.rect(playerX + 17, playerY + 34, 30, 30);
     ctx.stroke();
+
+    let tempHeight = canvas.height / 15;
+    ctx.fillStyle = "rgb(255, 255, 255)";
+    ctx.font = "20px monospace";
+    for (let i = 0; i < currentUpgrades.length; i++) {
+        let upgrade = upgrades[i];
+        if (currentUpgrades[i] > 0) {
+            ctx.fillText(upgrade.id.toUpperCase() + ": " + currentUpgrades[i], 20, tempHeight);
+            tempHeight += canvas.height / 20;
+        }
+    }
 
     for (let i = 0; i < playerProjectiles.length; i++) {
         let bullet = playerProjectiles[i];
@@ -1330,19 +1581,29 @@ function draw() {
     }
 
     ctx.fillStyle = "white";
-    ctx.font = "16px Arial";
-    ctx.fillText(`FPS: ${fps.toFixed(1)}`, 10, 20);
+    ctx.font = "30px monospace";
+    ctx.fillText(`FPS: ${fps.toFixed(1)}`, canvas.width - 250, 150);
 
     ctx.font = "30px monospace";
-    ctx.fillText("Score: " + score, canvas.width - 250, 40);
+    ctx.fillText("Score: " + score, canvas.width - 250, 70);
     if (!paused && playing) {
         let elapsedTime = Math.floor((Date.now() - startTime - totalPausedTime) / 1000);
         let minutes = Math.floor(elapsedTime / 60);
         let seconds = elapsedTime % 60;
         let timeText = `Time: ${minutes}:${seconds.toString().padStart(2, "0")}`;
-        ctx.fillText(timeText, canvas.width - 250, 80);
+        ctx.fillText(timeText, canvas.width - 250, 110);
     }
 
+    if (upgradesQueue.length > 0) {
+        if (upgradeCounter < upgradeDisplayTime) upgradeAlpha = Math.min(upgradeAlpha + upgradeFadeSpeed, 1);
+        else upgradeAlpha = Math.max(upgradeAlpha - upgradeFadeSpeed, 0);
+        upgradeCounter++;
+        ctx.fillStyle = `rgba(220, 20, 60, ${upgradeAlpha})`;
+        ctx.font = "bold 20px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(upgradesQueue[0].name + " upgraded!", canvas.width / 2, 70);
+        ctx.textAlign = "left";
+    }
     if (streak >= 2) {
         if (streakCounter < streakDisplayTime) streakAlpha = Math.min(streakAlpha + streakFadeSpeed, 1);
         else streakAlpha = Math.max(streakAlpha - streakFadeSpeed, 0);
@@ -1350,7 +1611,7 @@ function draw() {
         ctx.fillStyle = `rgba(255, 215, 0, ${streakAlpha})`;
         ctx.font = "bold 35px monospace";
         ctx.textAlign = "center";
-        ctx.fillText(streakNames[streak - 2], canvas.width / 2, 100);
+        ctx.fillText(streakNames[Math.min(streak - 2, streakNames.length - 1)], canvas.width / 2, 100);
         ctx.fillText("Current multiplier: " + currentMultiplier + "x", canvas.width / 2, 150);
         ctx.textAlign = "left";
     }
