@@ -60,6 +60,7 @@ function init() {
     homingBullet = loadImage("images/enemy/homingBullet.png");
     bounceBullet = loadImage("images/enemy/bounceBullet.png");
     playerShip = loadImage("images/player/player1.png");
+    playerShip = loadImage("images/player/player1.png");
     playerBullet = loadImage("images/player/bullet01.png");
     playerExpBullet = loadImage("images/player/expBullet.png");
 
@@ -140,7 +141,33 @@ function resetStats() {
     playerInvincibleDuration = 10;
 
     lastBoostedCall = 0;
+
+    playerFrontShots = playerShips[playerShipLevel - 1].frontShots;
+    playerSideShots = playerShips[playerShipLevel - 1].sideShots;
+    playerBounceCount = playerShips[playerShipLevel - 1].bounceCount;
+    playerWidth = playerShips[playerShipLevel - 1].width;
+    playerHeight = playerShips[playerShipLevel - 1].height;
+    playerMaxHealth = playerShips[playerShipLevel - 1].maxHealth;
+    playerHealth = playerMaxHealth;
+    playerMaxArmor = playerShips[playerShipLevel - 1].maxArmor;
+    playerArmor = playerMaxArmor;
+    playerArmorRegen = playerShips[playerShipLevel - 1].armorRegen;
+    playerMovementSpeed = playerShips[playerShipLevel - 1].movementSpeed;
+    originShootingCooldown = playerShips[playerShipLevel - 1].originShootingCooldown;
+    shootingCooldown = originShootingCooldown;
+    projectileDamage = playerShips[playerShipLevel - 1].projectileDamage;
+    projectileHealth = playerShips[playerShipLevel - 1].projectileHealth;
+    projectileSpeed = playerShips[playerShipLevel - 1].projectileSpeed;
+    playerLastArmorRegen = 0;
+    playerArmorRegenDelay = 200;
+    playerInvincible = false;
+    playerLastHit = 0;
+    playerInvincibleDuration = 10;
+
+    lastBoostedCall = 0;
     waveSpawnCounter = 0;
+    waveSpawnDelay = 500;
+    enemySpawnDelay = 30;
     waveSpawnDelay = 500;
     enemySpawnDelay = 30;
     enemySpawnCounter = 0;
@@ -148,8 +175,17 @@ function resetStats() {
     currentWaveTotalPower = 0;
     currentUpgrades = [0, 0, 0, 0, 0, 0, 0, 0];
     totalStacks = 0;
+    currentUpgrades = [0, 0, 0, 0, 0, 0, 0, 0];
+    totalStacks = 0;
     spawnCounter = 0;
     trueTimeCounter = 0;
+
+    pickedPowerup = null;
+    powerupPickCounter = 0;
+    powerupUseCounter = 0;
+
+    currentPowerup = null;
+    powerupCount = 0;
 
     pickedPowerup = null;
     powerupPickCounter = 0;
@@ -162,11 +198,20 @@ function resetStats() {
     streak = 0;
     previousKill = 0;
     originStreakTimeReq = 300;
+    originStreakTimeReq = 300;
     streakTimeReq = 300;
     streakAlpha = 0;
     streakCounter = 0;
     originMultiplier = 1;
+    originMultiplier = 1;
     currentMultiplier = 1;
+    upgradeAlpha = 0;
+    upgradeCounter = 0;
+
+    exp = 0;
+    expReq = 5;
+    expMultiplier = 1;
+
     upgradeAlpha = 0;
     upgradeCounter = 0;
 
@@ -184,8 +229,22 @@ function resetStats() {
     barriers = [];
     enemyDrops = [];
 
+    enemyProjectiles = [];
+    upgradesQueue = [];
+    inventory = [];
+    availablePowerups = [];
+    barriers = [];
+    enemyDrops = [];
+
     playerX = 0;
     playerY = canvas.height - 100;
+
+    init();
+    playerShip = playerShips[playerShipLevel - 1].image;
+}
+
+function restartGame() {
+    resetStats();
 
     init();
     playerShip = playerShips[playerShipLevel - 1].image;
