@@ -38,6 +38,7 @@ function handleMenuClick(e) {
             gameState != "playing"
         ) {
             if (b.text === "Start") {
+                playSFX("../audio/sfx/gameStart.wav", 0.5);
                 gameState = "playing";
             } else if (b.text === "Controls") {
                 gameState = "controls";
@@ -103,12 +104,15 @@ function endScreen() {
         ctx.textAlign = "left";
         if (score >= 10000 && playerShipLevel == 1) {
             playerShipLevel++;
+            playSFX("../audio/sfx/shipUnlock.wav", 0.5);
             window.alert("You've unlocked the second ship!");
         } else if (score >= 100000 && playerShipLevel == 2) {
             playerShipLevel++;
+            playSFX("../audio/sfx/shipUnlock.wav", 0.5);
             window.alert("You've unlocked the third ship!");
         } else if (score >= 1000000 && playerShipLevel == 3) {
             playerShipLevel++;
+            playSFX("../audio/sfx/shipUnlock.wav", 0.5);
             window.alert("You've unlocked the final ship!");
         }
         drawBackButton();
@@ -147,7 +151,6 @@ function drawBarriers() {
 }
 
 function drawTopBars() {
-    // Health bar (left)
     ctx.textAlign = "center";
     ctx.font = "15px serif";
     ctx.fillStyle = "rgb(150, 150, 150)";
@@ -159,7 +162,6 @@ function drawTopBars() {
     ctx.fillStyle = "rgb(255, 255, 255)";
     ctx.fillText(playerHealth + "/" + playerMaxHealth, canvas.width / 7, 25);
 
-    // Armor bar (right)
     ctx.fillStyle = "rgb(150, 150, 150)";
     ctx.fillRect((canvas.width * 3) / 4, 0, canvas.width / 3.5, 40);
 
@@ -174,7 +176,6 @@ function drawTopBars() {
     ctx.fillStyle = "rgb(255, 255, 255)";
     ctx.fillText(playerArmor + "/" + playerMaxArmor, (canvas.width * 25) / 28, 25);
 
-    // EXP bar (center)
     ctx.fillStyle = "rgb(150, 150, 150)";
     ctx.fillRect((canvas.width * 5) / 14, 0, canvas.width / 3.5, 40);
 
@@ -184,7 +185,6 @@ function drawTopBars() {
     ctx.fillStyle = "rgb(255, 255, 255)";
     ctx.fillText(exp + "/" + expReq, canvas.width / 2, 25);
 
-    // restore textAlign to left for subsequent drawing
     ctx.textAlign = "left";
 }
 

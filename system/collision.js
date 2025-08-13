@@ -53,6 +53,7 @@ function projectileUpdate() {
                     playerHealth -= bullet.damage - playerArmor;
                     playerArmor = 0;
                 }
+                playSFX("../audio/sfx/playerDamage.wav", 0.5);
                 hit = true;
                 playerLastHit = trueTimeCounter;
                 bullet.health--;
@@ -121,6 +122,7 @@ function collision() {
                         type: "aoe",
                     });
                 }
+                playSFX("../audio/sfx/enemyHit.wav", 0.05);
                 bullet.health--;
             }
             if (enemy.health <= 0 && enemy.revived == false) {
@@ -139,6 +141,7 @@ function collision() {
                     enemy.preserved = true;
                 }
             }
+            if (enemy.health <= 0) playSFX("../audio/sfx/enemyDeath.wav", 0.05);
         }
     }
     for (let i = 0; i < invincibilityQueue.length; i++) {
@@ -151,6 +154,7 @@ function collision() {
                 enemyDrops.push({
                     ...availablePowerups[Math.floor(Math.random() * availablePowerups.length)],
                 });
+                playSFX("../audio/sfx/powerupSpawn.wav", 0.3);
                 enemyDrops[enemyDrops.length - 1].x = enemies[i].x;
                 enemyDrops[enemyDrops.length - 1].y = enemies[i].y;
             }
@@ -160,6 +164,7 @@ function collision() {
                 streakCounter = 0;
                 streakTimeReq = 80 + 220 * Math.pow(0.8, streak - 1);
                 previousKill = trueTimeCounter;
+                playSFX("../audio/sfx/streak.wav", 0.2);
             } else {
                 streak = 1;
                 streakTimeReq = originStreakTimeReq;
@@ -169,7 +174,7 @@ function collision() {
             score += Math.floor(
                 enemies[i].point *
                     Math.round((currentMultiplier * 10) / 10) *
-                    Math.max(1, tempDifficulty / 100)
+                    Math.max(1, tempDifficulty / 10)
             );
             if (streak <= 1) currentMultiplier = originMultiplier;
             else
@@ -188,6 +193,7 @@ function collision() {
                     expReq = Math.floor(expReq);
                     totalStacks++;
                     upgradesQueue.push(upgradePlayer());
+                    playSFX("../audio/sfx/upgrade.wav", 0.3);
                 }
             }
         }
@@ -213,10 +219,12 @@ function collision() {
                     playerHealth -= enemy.health - playerArmor;
                     playerArmor = 0;
                 }
+                playSFX("../audio/sfx/playerDamage.wav", 0.5);
                 enemy.health = 0;
                 playerInvincible = true;
                 playerLastHit = trueTimeCounter;
             }
+            playSFX("../audio/sfx/enemyDeath.wav", 0.1);
         }
         if (trueTimeCounter - enemy.lastHitTime >= enemy.invincibleDuration) {
             enemy.isInvincible = false;

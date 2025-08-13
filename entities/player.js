@@ -58,10 +58,11 @@ function playerFunctions() {
         powerupCount++;
         powerupUseCounter = 0;
         boosted = true;
+        playSFX("../audio/sfx/powerupUse.wav", 0.5);
     }
     if (boosted) {
         if (
-            currentPowerup == null ||
+            currentPowerup != null &&
             trueTimeCounter - lastBoostedCall >=
                 currentPowerup.duration + (Math.floor(Math.max(1, powerupCount / 2)) + 30)
         ) {
@@ -88,7 +89,7 @@ function playerFunctions() {
                     break;
             }
             currentPowerup = null;
-        } else {
+        } else if (currentPowerup != null) {
             switch (currentPowerup.id) {
                 case "lsr":
                     playerProjectiles = playerProjectiles.filter((bullet) => bullet.health == -10000);
@@ -224,6 +225,7 @@ function playerFunctions() {
             if (inventory.length < playerShipLevel) {
                 inventory.push(drop);
                 pickedPowerup = drop;
+                playSFX("../audio/sfx/powerupPickup.wav", 0.5);
                 enemyDrops.splice(i, 1);
                 i--;
             }
@@ -263,6 +265,7 @@ function playerFunctions() {
     if (playerHealth <= 0) {
         endTime = Date.now();
         playing = false;
+        playSFX("../audio/sfx/gameOver.wav", 0.5);
     }
 }
 

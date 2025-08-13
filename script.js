@@ -29,6 +29,14 @@ document.addEventListener("keyup", (event) => {
     else if (key == "Enter") shooting = false;
 });
 
+document.addEventListener(
+    "click",
+    () => {
+        audioCtx.resume().then(() => playBGM("audio/music/bgm.wav", 0.5));
+    },
+    { once: true }
+);
+
 let fps = 0,
     lastCalled = performance.now();
 
@@ -141,30 +149,6 @@ function resetStats() {
     playerInvincibleDuration = 10;
 
     lastBoostedCall = 0;
-
-    playerFrontShots = playerShips[playerShipLevel - 1].frontShots;
-    playerSideShots = playerShips[playerShipLevel - 1].sideShots;
-    playerBounceCount = playerShips[playerShipLevel - 1].bounceCount;
-    playerWidth = playerShips[playerShipLevel - 1].width;
-    playerHeight = playerShips[playerShipLevel - 1].height;
-    playerMaxHealth = playerShips[playerShipLevel - 1].maxHealth;
-    playerHealth = playerMaxHealth;
-    playerMaxArmor = playerShips[playerShipLevel - 1].maxArmor;
-    playerArmor = playerMaxArmor;
-    playerArmorRegen = playerShips[playerShipLevel - 1].armorRegen;
-    playerMovementSpeed = playerShips[playerShipLevel - 1].movementSpeed;
-    originShootingCooldown = playerShips[playerShipLevel - 1].originShootingCooldown;
-    shootingCooldown = originShootingCooldown;
-    projectileDamage = playerShips[playerShipLevel - 1].projectileDamage;
-    projectileHealth = playerShips[playerShipLevel - 1].projectileHealth;
-    projectileSpeed = playerShips[playerShipLevel - 1].projectileSpeed;
-    playerLastArmorRegen = 0;
-    playerArmorRegenDelay = 200;
-    playerInvincible = false;
-    playerLastHit = 0;
-    playerInvincibleDuration = 10;
-
-    lastBoostedCall = 0;
     waveSpawnCounter = 0;
     waveSpawnDelay = 500;
     enemySpawnDelay = 30;
@@ -175,17 +159,8 @@ function resetStats() {
     currentWaveTotalPower = 0;
     currentUpgrades = [0, 0, 0, 0, 0, 0, 0, 0];
     totalStacks = 0;
-    currentUpgrades = [0, 0, 0, 0, 0, 0, 0, 0];
-    totalStacks = 0;
     spawnCounter = 0;
     trueTimeCounter = 0;
-
-    pickedPowerup = null;
-    powerupPickCounter = 0;
-    powerupUseCounter = 0;
-
-    currentPowerup = null;
-    powerupCount = 0;
 
     pickedPowerup = null;
     powerupPickCounter = 0;
@@ -215,20 +190,9 @@ function resetStats() {
     upgradeAlpha = 0;
     upgradeCounter = 0;
 
-    exp = 0;
-    expReq = 5;
-    expMultiplier = 1;
-
     playerProjectiles = [];
     enemies = [];
     temporaryEnemies = [];
-    enemyProjectiles = [];
-    upgradesQueue = [];
-    inventory = [];
-    availablePowerups = [];
-    barriers = [];
-    enemyDrops = [];
-
     enemyProjectiles = [];
     upgradesQueue = [];
     inventory = [];
@@ -245,9 +209,7 @@ function resetStats() {
 
 function restartGame() {
     resetStats();
-
     init();
-    playerShip = playerShips[playerShipLevel - 1].image;
 }
 
 function restartGame() {
