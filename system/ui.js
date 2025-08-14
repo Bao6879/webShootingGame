@@ -1,6 +1,12 @@
+/*
+    ui.js
+
+    Manages drawings of menus, health bar, sprites, background,...
+*/
 let buttons = [];
 function drawMenu() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawStars();
 
     ctx.font = "bold 48px Arial";
     ctx.fillStyle = "white";
@@ -102,18 +108,22 @@ function endScreen() {
         ctx.fillText("Total score: " + (score + timeScore), canvas.width / 2, canvas.height / 2 + 230);
         ctx.fillText("Click R to Restart...", canvas.width / 2, canvas.height / 2 + 280);
         ctx.textAlign = "left";
-        if (score >= 10000 && playerShipLevel == 1) {
+        if (score + timeScore >= 10000 && playerShipLevel == 1) {
             playerShipLevel++;
             playSFX("../audio/sfx/shipUnlock.wav", 0.5);
             window.alert("You've unlocked the second ship!");
-        } else if (score >= 100000 && playerShipLevel == 2) {
+        } else if (score + timeScore >= 100000 && playerShipLevel == 2) {
             playerShipLevel++;
             playSFX("../audio/sfx/shipUnlock.wav", 0.5);
             window.alert("You've unlocked the third ship!");
-        } else if (score >= 1000000 && playerShipLevel == 3) {
+        } else if (score + timeScore >= 1000000 && playerShipLevel == 3) {
             playerShipLevel++;
             playSFX("../audio/sfx/shipUnlock.wav", 0.5);
             window.alert("You've unlocked the final ship!");
+        }
+        if (score + timeScore >= 10000000) {
+            playSFX("../audio/sfx/shipUnlock.wav", 0.5);
+            window.alert("You've beaten the game!");
         }
         drawBackButton();
     }
@@ -364,4 +374,59 @@ function drawPauseOverlay() {
     ctx.fillText("Paused", canvas.width / 2, canvas.height / 2);
     ctx.textAlign = "left";
     drawBackButton();
+}
+
+function initMenu() {
+    const centerX = canvas.width / 2;
+    const startY = canvas.height / 3;
+
+    const buttonWidth = 200;
+    const buttonHeight = 50;
+    const gap = 20;
+
+    const labels = ["Start", "Controls", "Help"];
+    buttons = labels.map((label, i) => ({
+        x: centerX - buttonWidth / 2,
+        y: startY + i * (buttonHeight + gap),
+        width: buttonWidth,
+        height: buttonHeight,
+        text: label,
+    }));
+
+    canvas.addEventListener("click", handleMenuClick);
+}
+
+function initStars() {
+    stars = [];
+    for (let i = 0; i < starCount; i++) {
+        stars.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            size: Math.random() * 2 + 1,
+            speed: starSpeed + Math.random() * 0.5,
+        });
+    }
+}
+
+function updateStars() {
+    for (let star of stars) {
+        star.y += star.speed;
+        if (star.y > canvas.height) {
+            star.x = Math.random() * canvas.width;
+            star.y = -star.size;
+            star.speed = starSpeed + Math.random() * 0.5;
+        }
+    }
+}
+
+function drawStars() {
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = "white";
+    for (let star of stars) {
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+        ctx.fill();
+    }
 }

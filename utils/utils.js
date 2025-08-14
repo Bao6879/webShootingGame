@@ -1,3 +1,8 @@
+/*
+    utils.js
+
+    Utility functions, manages audio
+*/
 let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 const gainNode = audioCtx.createGain();
 gainNode.connect(audioCtx.destination);

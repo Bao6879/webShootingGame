@@ -1,3 +1,8 @@
+/*
+    player.js
+
+    Manages player-related state, input, shooting, upgrades, powerups,...
+*/
 let playerFrontShots = 1,
     playerSideShots = 0,
     playerBounceCount = 0;
@@ -46,6 +51,7 @@ let exp = 0,
     expMultiplier = 1,
     inventory = [],
     upgradesQueue = [];
+//Manages powerups, movement for the player
 function playerFunctions() {
     if (dPressed && playerX <= canvas.width - playerMovementSpeed - 64) playerX += playerMovementSpeed;
     if (aPressed && playerX >= playerMovementSpeed) playerX -= playerMovementSpeed;
@@ -236,32 +242,6 @@ function playerFunctions() {
         playerArmor = Math.min(playerArmor + playerArmorRegen, playerMaxArmor);
         playerLastArmorRegen = trueTimeCounter;
     }
-    for (let i = 0; i < playerProjectiles.length; i++) {
-        let bullet = playerProjectiles[i];
-        bullet.x += bullet.xSpeed;
-        bullet.y += bullet.ySpeed;
-        if (bullet.bounceCount > 0) {
-            if (bullet.x + bullet.xSpeed + bullet.width >= canvas.width || bullet.x + bullet.xSpeed <= 0) {
-                bullet.xSpeed = -bullet.xSpeed;
-                bullet.bounceCount--;
-            }
-            if (
-                bullet.y + bullet.ySpeed + bullet.height >= canvas.height ||
-                (bullet.y + bullet.ySpeed <= 0 && bullet.bounceCount > 0)
-            ) {
-                bullet.ySpeed = -bullet.ySpeed;
-                bullet.bounceCount--;
-            }
-        }
-    }
-    playerProjectiles = playerProjectiles.filter(
-        (bullet) =>
-            bullet.health > 0 &&
-            bullet.y >= -20 &&
-            bullet.y <= canvas.height + 20 &&
-            bullet.x >= -20 &&
-            bullet.x <= canvas.width + 20
-    );
     if (playerHealth <= 0) {
         endTime = Date.now();
         playing = false;
@@ -269,6 +249,7 @@ function playerFunctions() {
     }
 }
 
+//Manages all upgrades for the player
 function upgradePlayer() {
     let sumWeight = 0,
         flag = 0;

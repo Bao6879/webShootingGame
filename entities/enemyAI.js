@@ -1,3 +1,10 @@
+/*
+    enemyAI.js
+
+    Manages enemy movement and behavior
+*/
+
+//Defines movement based on defined movement pattern
 function enemyMovement(enemy) {
     switch (enemy.movement) {
         case "straight":
@@ -227,6 +234,7 @@ function enemyMovement(enemy) {
     }
 }
 
+//Defines shooting behavior and the heal ability
 function enemyBehavior(enemy) {
     if (enemy.type == "range") {
         if (trueTimeCounter - enemy.lastShot >= enemy.shotDelay) {

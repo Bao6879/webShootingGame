@@ -1,5 +1,11 @@
+/*
+    projectile.js
+
+    Manages projectile movement, behavior, and collisions
+*/
 let enemyProjectiles = [],
     playerProjectiles = [];
+//Moves projectiles, enemy drops; check for collision for enemy projectiles
 function projectileUpdate() {
     let hit = false;
     for (let i = 0; i < enemyDrops.length; i++) {
@@ -73,7 +79,33 @@ function projectileUpdate() {
             }
         }
     }
+    for (let i = 0; i < playerProjectiles.length; i++) {
+        let bullet = playerProjectiles[i];
+        bullet.x += bullet.xSpeed;
+        bullet.y += bullet.ySpeed;
+        if (bullet.bounceCount > 0) {
+            if (bullet.x + bullet.xSpeed + bullet.width >= canvas.width || bullet.x + bullet.xSpeed <= 0) {
+                bullet.xSpeed = -bullet.xSpeed;
+                bullet.bounceCount--;
+            }
+            if (
+                bullet.y + bullet.ySpeed + bullet.height >= canvas.height ||
+                (bullet.y + bullet.ySpeed <= 0 && bullet.bounceCount > 0)
+            ) {
+                bullet.ySpeed = -bullet.ySpeed;
+                bullet.bounceCount--;
+            }
+        }
+    }
     if (hit) playerInvincible = true;
+    playerProjectiles = playerProjectiles.filter(
+        (bullet) =>
+            bullet.health > 0 &&
+            bullet.y >= -20 &&
+            bullet.y <= canvas.height + 20 &&
+            bullet.x >= -20 &&
+            bullet.x <= canvas.width + 20
+    );
     enemyDrops = enemyDrops.filter((drop) => drop.y <= canvas.height + 20);
     enemyProjectiles = enemyProjectiles.filter(
         (bullet) =>
@@ -88,6 +120,7 @@ function projectileUpdate() {
     );
 }
 
+//Check for collision from player projectiles
 function collision() {
     let invincibilityQueue = [];
     for (let i = 0; i < playerProjectiles.length; i++) {

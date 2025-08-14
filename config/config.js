@@ -1,3 +1,11 @@
+/*
+    config.js
+
+    Stores all constant definitions for player ships, enemies, upgrades, and abilities.
+    Read-only values that are only tweaked for balance.
+*/
+
+//Streak names
 const streakNames = [
     "Double Kill",
     "Triple Kill",
@@ -25,6 +33,8 @@ const streakNames = [
     "Godlike",
     "Ungodly",
 ];
+
+//Information about each of the player's ship: health, armor, damage, shot count,...
 const playerShips = [
     {
         id: 1,
@@ -95,11 +105,13 @@ const playerShips = [
         projectileSpeed: 13,
     },
 ];
+
+//Powrup information
 const powerups = [
     {
         name: "Laser",
         id: "lsr",
-        req: 1,
+        req: 1, //Player ship level required to use
         duration: 60,
     },
     {
@@ -145,6 +157,8 @@ const powerups = [
         duration: 300,
     },
 ];
+
+//Information about upgrades
 const upgrades = [
     {
         name: "Damage",
@@ -201,10 +215,12 @@ const upgrades = [
         multiplier: 1.2,
     },
 ];
+
+//Abilities for enemies
 const abilities = [
     {
         name: "shield",
-        compatible: 1,
+        compatible: 1, //Minimum tier required to use
     },
     {
         name: "berserk",
@@ -223,6 +239,8 @@ const abilities = [
         compatible: 2,
     },
 ];
+
+//Information on all enemies
 const enemyTypes = [
     {
         id: "tank01",
@@ -497,7 +515,13 @@ const enemyTypes = [
         movement: ["loop", "hold", "trueMirror"],
     },
 ];
+
+//Constants for streak count display and upgrade message display
 const streakDisplayTime = 300,
     upgradeDisplayTime = 300,
     streakFadeSpeed = 0.02,
     upgradeFadeSpeed = 0.02;
+
+// Starfield settings
+const starCount = 100,
+    starSpeed = 0.3;

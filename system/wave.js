@@ -1,3 +1,8 @@
+/*
+    wave.js
+
+    Manages wave spawning mechanic
+*/
 let waveSpawnCounter = 0,
     waveSpawnDelay = 500,
     enemySpawnDelay = 30,

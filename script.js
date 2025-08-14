@@ -1,3 +1,9 @@
+/*
+    script.js
+
+    The main game loop, calls processing for all components of the system, and draws the full board
+*/
+
 //Canvas settings
 const canvas = document.getElementById("myCanvas");
 canvas.width = window.innerWidth * 0.5;
@@ -46,6 +52,7 @@ let playerShip = null,
     normalBullet = null,
     bounceBullet = null,
     homingBullet = null;
+let stars = [];
 
 function init() {
     enemyTypes[0].image = loadImage("images/enemy/tank01.png");
@@ -81,6 +88,7 @@ function init() {
         }
     }
     initMenu();
+    initStars();
 }
 
 //Game variables
@@ -106,6 +114,7 @@ let availablePowerups = [],
 function process() {
     if (playing && !paused) {
         updateFPS();
+        updateStars();
         playerFunctions();
         waveSpawn();
         collision();
@@ -269,6 +278,7 @@ function draw() {
         };
     } else if (gameState == "help") {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawStars();
 
         ctx.font = "bold 48px Arial";
         ctx.fillStyle = "white";
@@ -279,10 +289,12 @@ function draw() {
         ctx.textAlign = "center";
         const helpText = [
             "Shoot them up",
-            "Upgrade as you kill more enemies",
+            "Upgrade as you kill more enemies, look at your exp bar",
+            "Whenever upgrades occur, there will be a notification",
             "Powerups have a chance of dropping",
             "Unlock more ships and powerups as you get higher scores",
-            "Enemies and powerups scale with time",
+            "At 10k, 100k, and 1 m",
+            "Enemies and powerups power scale with time",
         ];
 
         helpText.forEach((line, i) => {
@@ -319,6 +331,7 @@ function draw() {
         ctx.globalAlpha = 1.0;
         ctx.save();
 
+        drawStars();
         drawBarriers();
         drawTopBars();
         drawBoostOverlayIfNeeded();
@@ -335,27 +348,9 @@ function draw() {
         drawPowerup();
         endScreen();
 
-        if (paused) drawPauseOverlay();
+        if (paused) {
+            drawPauseOverlay();
+        }
     }
     window.requestAnimationFrame(draw);
-}
-
-function initMenu() {
-    const centerX = canvas.width / 2;
-    const startY = canvas.height / 3;
-
-    const buttonWidth = 200;
-    const buttonHeight = 50;
-    const gap = 20;
-
-    const labels = ["Start", "Controls", "Help"];
-    buttons = labels.map((label, i) => ({
-        x: centerX - buttonWidth / 2,
-        y: startY + i * (buttonHeight + gap),
-        width: buttonWidth,
-        height: buttonHeight,
-        text: label,
-    }));
-
-    canvas.addEventListener("click", handleMenuClick);
 }

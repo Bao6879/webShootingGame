@@ -1,7 +1,14 @@
+/*
+    enemy.js
+
+    Manages enemy creation
+*/
+
 let enemies = [],
     temporaryEnemies = [],
     enemyDrops = [];
 
+//Selects an enemy to create from the array of available enemies based on current available power from the current wave
 function selectEnemy(totalPower) {
     let sumWeight = 0,
         flag = 0;
@@ -26,9 +33,9 @@ function selectEnemy(totalPower) {
     return null;
 }
 
+//Creates an enemy and scale it with the wave and player ship level
 function createEnemy(enemy) {
     let tempDifficulty = (playerShipLevel - 1) * 5 + Math.max(1, currentWave * 0.075);
-    console.log(tempDifficulty);
     let newEnemy = {
         type: enemy.type,
         x: Math.random() * (canvas.width - enemy.width),
