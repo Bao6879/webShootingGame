@@ -56,6 +56,10 @@ Shapes of War is a 2D space shooter game built with HTML5 Canvas and vanilla Jav
 
 ## Installation
 
+You can play it directly on the website: https://shapesofwar.netlify.app
+
+OR
+
 1. Clone or download the repository:
 
 ```bash
