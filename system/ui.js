@@ -133,8 +133,8 @@ function drawInventory() {
     let padding = 10;
 
     for (let i = 0; i < playerShipLevel; i++) {
-        let x = canvas.width - slotSize - 50;
-        let y = 170 + i * (slotSize + padding);
+        let x = 50 + i * (slotSize + padding);
+        let y = canvas.height - slotSize - padding - 10;
 
         ctx.fillStyle = "rgb(150, 150, 150)";
         ctx.fillRect(x, y, slotSize, slotSize);

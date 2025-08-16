@@ -334,12 +334,11 @@ function draw() {
         drawStars();
         drawBarriers();
         drawTopBars();
+        drawInventory();
         drawBoostOverlayIfNeeded();
         drawPlayerSpriteAndBox();
-        drawUpgradesList();
         drawPlayerProjectiles();
         drawEnemies();
-        drawInventory();
         drawEnemyProjectiles();
         drawDrops();
         drawHUDText();
@@ -350,6 +349,7 @@ function draw() {
 
         if (paused) {
             drawPauseOverlay();
+            drawUpgradesList();
         }
     }
     window.requestAnimationFrame(draw);
