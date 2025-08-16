@@ -1,6 +1,6 @@
 # Shapes of War
 
-Shapes of War is a 2D space shooter game built with HTML5 Canvas and vanilla JavaScript. Shoot the enemy, collect powerup, upgrade and geet to 10 m!
+Shapes of War is a 2D space shooter game built with HTML5 Canvas and vanilla JavaScript. Shoot the enemy, collect powerup, upgrade and get to 10 m!
 
 ![Shapes of War Gameplay](/images/demo.png)
 
